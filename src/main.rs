@@ -56,6 +56,9 @@ fn main() -> Result<()> {
 
 fn handle_args() -> Result<InterpreterCommand, InterpreterError> {
     let args: Vec<String> = env::args().collect();
+
+    //let args: Vec<String> = vec!["".into(), "tokenize".into(), "test.lox".into()];
+
     if args.len() < 3 {
         return Err(InterpreterError::InvalidCommand(args[0].clone()));
     }
@@ -92,7 +95,8 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
                 if input.peek() == Some(&'=') {
                     input.next();
                     println!("EQUAL_EQUAL == null");
-                } else {
+                }
+                else {
                     println!("EQUAL = null");
                 }
             }
@@ -100,7 +104,8 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
                 if input.peek() == Some(&'=') {
                     input.next();
                     println!("BANG_EQUAL != null");
-                } else {
+                }
+                else {
                     println!("BANG ! null");
                 }
             }
@@ -108,7 +113,8 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
                 if input.peek() == Some(&'=') {
                     input.next();
                     println!("LESS_EQUAL <= null");
-                } else {
+                }
+                else {
                     println!("LESS < null");
                 }
             }
@@ -116,7 +122,8 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
                 if input.peek() == Some(&'=') {
                     input.next();
                     println!("GREATER_EQUAL >= null");
-                } else {
+                }
+                else {
                     println!("GREATER > null");
                 }
             }
@@ -125,16 +132,34 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
                     while input.peek() != Some(&'\n') && input.peek() != None {
                         input.next();
                     }
-                } else {
+                }
+                else {
                     println!("SLASH / null");
                 }
+            },
+            '"' => {
+                let start = input.pos();
+                while input.peek() != Some(&'"') && input.peek() != None {
+                    input.next();
+                }
+
+                if input.peek() == None {
+                    // this should change in the future
+                    writeln!(io::stderr(), "[line {}] Error: Unterminated string", input.line()).unwrap();
+                    lexical_failure = true;
+                }
+                else {
+                    let pos = input.pos();
+                    input.next();
+                    println!("STRING \"{0}\" {0}", input.get_lexeme(start, pos));
+                }
             }
-            // this should change in the future
             unmatched => {
                 if unmatched.is_whitespace() {
                     continue;
                 }
 
+                // this should change in the future
                 writeln!(io::stderr(), "[line {}] Error: Unexpected character: {}", input.line(), chr).unwrap();
                 lexical_failure = true;
             }
