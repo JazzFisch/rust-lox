@@ -97,6 +97,7 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
         }
     }
 
+    io::stderr().flush().unwrap();
     println!("EOF  null");
 
     if lexical_failure {
