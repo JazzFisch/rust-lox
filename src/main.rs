@@ -13,6 +13,9 @@ enum InterpreterError {
 
     #[error("Failed to read file {0}")]
     InvalidFile(String),
+
+    #[error("Unknown error")]
+    ErrorOutputError { #[source] source: std::io::Error },
 }
 
 enum InterpreterCommand {
@@ -62,6 +65,7 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
 
     // ,, ., -, +, ;, *
     if !file_contents.is_empty() {
+        let mut line = 1;
         for chr in file_contents.chars() {
             match chr {
                 '(' => println!("LEFT_PAREN ( null"),
@@ -74,7 +78,9 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
                 '+' => println!("PLUS + null"),
                 ';' => println!("SEMICOLON ; null"),
                 '*' => println!("STAR * null"),
-                _ => println!("CHAR {} null", chr),
+                '\n' => line += 1,
+                // this should change in the future
+                _ => writeln!(io::stderr(), "[line {}]: Error: Unexpected character: {}", line, chr).unwrap(),
             }
         }
     }
