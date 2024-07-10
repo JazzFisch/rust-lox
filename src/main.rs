@@ -65,6 +65,8 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
             match chr {
                 '(' => println!("LEFT_PAREN ( null"),
                 ')' => println!("RIGHT_PAREN ) null"),
+                '{' => println!("LEFT_BRACE {{ null"),
+                '}' => println!("RIGHT_BRACE }} null"),
                 _ => println!("CHAR {} null", chr),
             }
         }
