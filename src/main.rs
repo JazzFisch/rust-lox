@@ -158,6 +158,17 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
                 if unmatched.is_whitespace() {
                     continue;
                 }
+                if unmatched.is_ascii_digit() {
+                    let start = input.pos() - 1;
+                    while input.peek() != None && (input.peek().unwrap().is_ascii_digit() || input.peek().unwrap() == &'.') {
+                        input.next();
+                    }
+
+                    let pos = input.pos();
+                    input.next();
+                    println!("NUMBER \"{0}\" {0}", input.get_lexeme(start, pos));
+                    continue;
+                }
 
                 // this should change in the future
                 writeln!(io::stderr(), "[line {}] Error: Unexpected character: {}", input.line(), chr).unwrap();
