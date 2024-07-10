@@ -1,10 +1,9 @@
 use std::env;
 use std::fs;
 use std::io::{self, Write};
-use std::process::exit;
 use anyhow::Result;
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, PartialEq)]
 enum InterpreterError {
     #[error("Invalid command. Usage: {0} tokenize <filename>")]
     InvalidCommand(String),
@@ -37,7 +36,6 @@ fn main() -> Result<()> {
 
     if result.is_err() {
         let err = result.err().unwrap();
-        writeln!(io::stderr(), "{}", err)?;
         let exit_code = match err {
             InterpreterError::InvalidCommand(_) => 64,
             InterpreterError::InvalidFile(_) => 64,
@@ -45,6 +43,9 @@ fn main() -> Result<()> {
             _ => 1,
         };
 
+        if err != InterpreterError::LexicalFailure {
+            writeln!(io::stderr(), "{}", err)?;
+        }
         std::process::exit(exit_code);
     }
 
