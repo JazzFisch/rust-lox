@@ -130,7 +130,11 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
                 }
             }
             // this should change in the future
-            _ => {
+            unmatched => {
+                if unmatched.is_whitespace() {
+                    continue;
+                }
+
                 writeln!(io::stderr(), "[line {}] Error: Unexpected character: {}", input.line(), chr).unwrap();
                 lexical_failure = true;
             }
