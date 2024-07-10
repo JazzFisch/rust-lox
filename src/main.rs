@@ -3,6 +3,8 @@ use std::fs;
 use std::io::{self, Write};
 use anyhow::Result;
 
+mod input;
+
 #[derive(thiserror::Error, Debug, PartialEq)]
 enum InterpreterError {
     #[error("Invalid command. Usage: {0} tokenize <filename>")]
@@ -73,27 +75,31 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
     let file_contents = file_contents.ok().unwrap_or("".into());
     let mut lexical_failure = false;
 
-    // ,, ., -, +, ;, *
-    if !file_contents.is_empty() {
-        let mut line = 1;
-        for chr in file_contents.chars() {
-            match chr {
-                '(' => println!("LEFT_PAREN ( null"),
-                ')' => println!("RIGHT_PAREN ) null"),
-                '{' => println!("LEFT_BRACE {{ null"),
-                '}' => println!("RIGHT_BRACE }} null"),
-                ',' => println!("COMMA , null"),
-                '.' => println!("DOT . null"),
-                '-' => println!("MINUS - null"),
-                '+' => println!("PLUS + null"),
-                ';' => println!("SEMICOLON ; null"),
-                '*' => println!("STAR * null"),
-                '\n' => line += 1,
-                // this should change in the future
-                _ => {
-                    writeln!(io::stderr(), "[line {}] Error: Unexpected character: {}", line, chr).unwrap();
-                    lexical_failure = true;
+    let mut input = input::Input::new(&file_contents);
+    while let Some(chr) = input.next() {
+        match chr {
+            '(' => println!("LEFT_PAREN ( null"),
+            ')' => println!("RIGHT_PAREN ) null"),
+            '{' => println!("LEFT_BRACE {{ null"),
+            '}' => println!("RIGHT_BRACE }} null"),
+            ',' => println!("COMMA , null"),
+            '.' => println!("DOT . null"),
+            '-' => println!("MINUS - null"),
+            '+' => println!("PLUS + null"),
+            ';' => println!("SEMICOLON ; null"),
+            '*' => println!("STAR * null"),
+            '=' => {
+                if input.peek() == Some('=') {
+                    input.next();
+                    println!("EQUAL_EQUAL == null");
+                } else {
+                    println!("EQUAL = null");
                 }
+            }
+            // this should change in the future
+            _ => {
+                writeln!(io::stderr(), "[line {}] Error: Unexpected character: {}", input.line(), chr).unwrap();
+                lexical_failure = true;
             }
         }
     }
