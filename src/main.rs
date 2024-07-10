@@ -145,7 +145,7 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
 
                 if input.peek() == None {
                     // this should change in the future
-                    writeln!(io::stderr(), "[line {}] Error: Unterminated string", input.line()).unwrap();
+                    writeln!(io::stderr(), "[line {}] Error: Unterminated string.", input.line()).unwrap();
                     lexical_failure = true;
                 }
                 else {
