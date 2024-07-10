@@ -96,6 +96,14 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
                     println!("EQUAL = null");
                 }
             }
+            '!' => {
+                if input.peek() == Some('=') {
+                    input.next();
+                    println!("BANG_EQUAL != null");
+                } else {
+                    println!("BANG ! null");
+                }
+            }
             // this should change in the future
             _ => {
                 writeln!(io::stderr(), "[line {}] Error: Unexpected character: {}", input.line(), chr).unwrap();
