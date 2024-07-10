@@ -91,7 +91,7 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
                 '\n' => line += 1,
                 // this should change in the future
                 _ => {
-                    writeln!(io::stderr(), "[line {}]: Error: Unexpected character: {}", line, chr).unwrap();
+                    writeln!(io::stderr(), "[line {}] Error: Unexpected character: {}", line, chr).unwrap();
                     lexical_failure = true;
                 }
             }
