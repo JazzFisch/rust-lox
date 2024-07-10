@@ -1,6 +1,7 @@
 use std::env;
 use std::fs;
 use std::io::{self, Write};
+use std::process::exit;
 use anyhow::Result;
 
 #[derive(thiserror::Error, Debug)]
@@ -11,11 +12,11 @@ enum InterpreterError {
     #[error("Unknown command: {0}")]
     UnknownCommand(String),
 
+    #[error("Lexical failure")]
+    LexicalFailure,
+
     #[error("Failed to read file {0}")]
     InvalidFile(String),
-
-    #[error("Unknown error")]
-    ErrorOutputError { #[source] source: std::io::Error },
 }
 
 enum InterpreterCommand {
@@ -37,7 +38,14 @@ fn main() -> Result<()> {
     if result.is_err() {
         let err = result.err().unwrap();
         writeln!(io::stderr(), "{}", err)?;
-        return Err(err.into());
+        let exit_code = match err {
+            InterpreterError::InvalidCommand(_) => 64,
+            InterpreterError::InvalidFile(_) => 64,
+            InterpreterError::LexicalFailure => 65,
+            _ => 1,
+        };
+
+        std::process::exit(exit_code);
     }
 
     Ok(())
@@ -62,6 +70,7 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
     }
 
     let file_contents = file_contents.ok().unwrap_or("".into());
+    let mut lexical_failure = false;
 
     // ,, ., -, +, ;, *
     if !file_contents.is_empty() {
@@ -80,11 +89,19 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
                 '*' => println!("STAR * null"),
                 '\n' => line += 1,
                 // this should change in the future
-                _ => writeln!(io::stderr(), "[line {}]: Error: Unexpected character: {}", line, chr).unwrap(),
+                _ => {
+                    writeln!(io::stderr(), "[line {}]: Error: Unexpected character: {}", line, chr).unwrap();
+                    lexical_failure = true;
+                }
             }
         }
     }
 
     println!("EOF  null");
+
+    if lexical_failure {
+        return Err(InterpreterError::LexicalFailure);
+    }
+
     Ok(())
 }
