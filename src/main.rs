@@ -1,38 +1,75 @@
-use std::collections::LinkedList;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
-use std::ptr::NonNull;
+use anyhow::Result;
 
-fn main() {
+#[derive(thiserror::Error, Debug)]
+enum InterpreterError {
+    #[error("Invalid command. Usage: {0} tokenize <filename>")]
+    InvalidCommand(String),
+
+    #[error("Unknown command: {0}")]
+    UnknownCommand(String),
+
+    #[error("Failed to read file {0}")]
+    InvalidFile(String),
+}
+
+enum InterpreterCommand {
+    Tokenize(String),
+}
+
+fn main() -> Result<()> {
+    let command = handle_args();
+    if command.is_err() {
+        let err = command.err().unwrap();
+        writeln!(io::stderr(), "{}", err)?;
+        return Err(err.into());
+    }
+
+    let result = match command.ok().unwrap() {
+        InterpreterCommand::Tokenize(filename) => tokenize(&filename),
+    };
+
+    if result.is_err() {
+        let err = result.err().unwrap();
+        writeln!(io::stderr(), "{}", err)?;
+        return Err(err.into());
+    }
+
+    Ok(())
+}
+
+fn handle_args() -> Result<InterpreterCommand, InterpreterError> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
-        writeln!(io::stderr(), "Usage: {} tokenize <filename>", args[0]).unwrap();
-        return;
+        return Err(InterpreterError::InvalidCommand(args[0].clone()));
     }
 
-    let command = &args[1];
-    let filename = &args[2];
+    return match args[1].as_str() {
+        "tokenize" => Ok(InterpreterCommand::Tokenize(args[2].clone())),
+        _ => Err(InterpreterError::UnknownCommand(args[1].clone())),
+    };
+}
 
-    match command.as_str() {
-        "tokenize" => {
-            // You can use print statements as follows for debugging, they'll be visible when running tests.
-            //writeln!(io::stderr(), "Logs from your program will appear here!").unwrap();
+fn tokenize(filename: &String) -> Result<(), InterpreterError> {
+    let file_contents = fs::read_to_string(filename);
+    if file_contents.is_err() {
+        return Err(InterpreterError::InvalidFile(filename.into()));
+    }
 
-            let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
-                writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
-                String::new()
-            });
+    let file_contents = file_contents.ok().unwrap_or("".into());
 
-            if !file_contents.is_empty() {
-                panic!("Scanner not implemented");
-            } else {
-                println!("EOF  null"); // Placeholder, remove this line when implementing the scanner
+    if !file_contents.is_empty() {
+        for chr in file_contents.chars() {
+            match chr {
+                '(' => println!("LEFT_PAREN ( null"),
+                ')' => println!("RIGHT_PAREN ) null"),
+                _ => println!("CHAR {} null", chr),
             }
         }
-        _ => {
-            writeln!(io::stderr(), "Unknown command: {}", command).unwrap();
-            return;
-        }
     }
+
+    println!("EOF  null");
+    Ok(())
 }
