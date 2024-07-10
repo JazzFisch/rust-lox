@@ -159,14 +159,26 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
                     continue;
                 }
                 if unmatched.is_ascii_digit() {
+                    let mut add_dot = false;
                     let start = input.pos() - 1;
-                    while input.peek() != None && (input.peek().unwrap().is_ascii_digit() || input.peek().unwrap() == &'.') {
+                    while input.peek() != None && input.peek().unwrap().is_ascii_digit() {
                         input.next();
+
+                        // check for decimal point
+                        if input.peek() == Some(&'.') {
+                            input.next();
+                            if input.peek() == None || !input.peek().unwrap().is_ascii_digit() {
+                                add_dot = true;
+                            }
+                        }
                     }
 
-                    let pos = input.pos();
+                    let pos = if add_dot { input.pos() - 1 } else { input.pos() };
                     input.next();
                     println!("NUMBER {0} {0}", input.get_lexeme(start, pos));
+                    if add_dot {
+                        println!("DOT . null")
+                    }
                     continue;
                 }
 
