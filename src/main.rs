@@ -104,6 +104,22 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
                     println!("BANG ! null");
                 }
             }
+            '<' => {
+                if input.peek() == Some('=') {
+                    input.next();
+                    println!("LESS_EQUAL <= null");
+                } else {
+                    println!("LESS < null");
+                }
+            }
+            '>' => {
+                if input.peek() == Some('=') {
+                    input.next();
+                    println!("GREATER_EQUAL >= null");
+                } else {
+                    println!("GREATER > null");
+                }
+            }
             // this should change in the future
             _ => {
                 writeln!(io::stderr(), "[line {}] Error: Unexpected character: {}", input.line(), chr).unwrap();
