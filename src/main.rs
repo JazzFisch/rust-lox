@@ -60,6 +60,7 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
 
     let file_contents = file_contents.ok().unwrap_or("".into());
 
+    // ,, ., -, +, ;, *
     if !file_contents.is_empty() {
         for chr in file_contents.chars() {
             match chr {
@@ -67,6 +68,12 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
                 ')' => println!("RIGHT_PAREN ) null"),
                 '{' => println!("LEFT_BRACE {{ null"),
                 '}' => println!("RIGHT_BRACE }} null"),
+                ',' => println!("COMMA , null"),
+                '.' => println!("DOT . null"),
+                '-' => println!("MINUS - null"),
+                '+' => println!("PLUS + null"),
+                ';' => println!("SEMICOLON ; null"),
+                '*' => println!("STAR * null"),
                 _ => println!("CHAR {} null", chr),
             }
         }
