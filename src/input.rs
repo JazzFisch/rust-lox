@@ -1,25 +1,24 @@
+use std::{iter::Peekable, str::Chars};
+
 pub struct Input<'a> {
-    text: &'a str,
-    pos: usize,
-    line: i32
+    line: i32,
+    iter: Peekable<Chars<'a>>,
 }
 
 impl<'a> Input<'a> {
-    pub fn new(text: &'a str) -> Input<'a> {
+    pub fn new(text: &str) -> Input {
         Input {
-            text,
-            pos: 0,
+            iter: text.chars().peekable(),
             line: 1
         }
     }
 
     pub fn next(&mut self) -> Option<char> {
-        let chr = self.text.chars().nth(self.pos);
+        let chr = self.iter.next();
         if chr.is_none() {
             return None;
         }
 
-        self.pos += 1;
         if chr.unwrap() == '\n' {
             self.line += 1;
         }
@@ -31,7 +30,7 @@ impl<'a> Input<'a> {
         self.line
     }
 
-    pub fn peek(&self) -> Option<char> {
-        self.text.chars().nth(self.pos)
+    pub fn peek(&mut self) -> Option<&char> {
+        self.iter.peek()
     }
 }

@@ -89,7 +89,7 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
             ';' => println!("SEMICOLON ; null"),
             '*' => println!("STAR * null"),
             '=' => {
-                if input.peek() == Some('=') {
+                if input.peek() == Some(&'=') {
                     input.next();
                     println!("EQUAL_EQUAL == null");
                 } else {
@@ -97,7 +97,7 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
                 }
             }
             '!' => {
-                if input.peek() == Some('=') {
+                if input.peek() == Some(&'=') {
                     input.next();
                     println!("BANG_EQUAL != null");
                 } else {
@@ -105,7 +105,7 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
                 }
             }
             '<' => {
-                if input.peek() == Some('=') {
+                if input.peek() == Some(&'=') {
                     input.next();
                     println!("LESS_EQUAL <= null");
                 } else {
@@ -113,11 +113,20 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
                 }
             }
             '>' => {
-                if input.peek() == Some('=') {
+                if input.peek() == Some(&'=') {
                     input.next();
                     println!("GREATER_EQUAL >= null");
                 } else {
                     println!("GREATER > null");
+                }
+            }
+            '/' => {
+                if input.peek() == Some(&'/') {
+                    while input.peek() != Some(&'\n') && input.peek() != None {
+                        input.next();
+                    }
+                } else {
+                    println!("SLASH / null");
                 }
             }
             // this should change in the future
