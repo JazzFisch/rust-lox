@@ -166,7 +166,7 @@ fn tokenize(filename: &String) -> Result<(), InterpreterError> {
 
                     let pos = input.pos();
                     input.next();
-                    println!("NUMBER \"{0}\" {0}", input.get_lexeme(start, pos));
+                    println!("NUMBER {0} {0}", input.get_lexeme(start, pos));
                     continue;
                 }
 
