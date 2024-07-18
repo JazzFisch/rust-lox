@@ -33,7 +33,7 @@ pub enum TokenType {
     LessEqual,
 
     // literals
-    //Identifier(String),
+    Identifier(String),
     String(String),
     Number(String, f64),
 
@@ -106,6 +106,11 @@ impl<'a> Lexer<'a> {
                             continue;
                         }
                     }
+                    if unmatched.is_ascii_alphabetic() || unmatched == '_' {
+                        if let Ok(_) = self.identifier() {
+                            continue;
+                        }
+                    }
 
                     // this should change in the future
                     self.report(self.line, &format!("Unexpected character: {}", unmatched));
@@ -150,6 +155,7 @@ impl<'a> Lexer<'a> {
             TokenType::Less => println!("LESS < null"),
             TokenType::LessEqual => println!("LESS_EQUAL <= null"),
             // literals
+            TokenType::Identifier(str) => println!("IDENTIFIER {str} null"),
             TokenType::String(str) => println!("STRING \"{str}\" {str}"),
             TokenType::Number(str, num) => {
                 // this is a hack to get the output to match the book
@@ -162,7 +168,7 @@ impl<'a> Lexer<'a> {
             }
 
             TokenType::EOF => println!("EOF  null"),
-            _ => unimplemented!("Unimplemented token type {token:?}"),
+            //_ => unimplemented!("Unimplemented token type {token:?}"),
         }
 
     }
@@ -188,6 +194,18 @@ impl<'a> Lexer<'a> {
 
     fn get_lexeme(&self, start: usize, end: usize) -> String {
         self.text.chars().skip(start).take(end - start + 1).collect()
+    }
+
+    fn identifier(&mut self) -> Result<(), InterpreterError> {
+        let start = self.pos();
+        while self.peek().map_or(false, |chr| chr.is_ascii_alphabetic() || chr == '_') {
+            self.advance();
+        }
+
+        let lexeme = self.get_lexeme(start, self.pos());
+        self.add_token(TokenType::Identifier(lexeme));
+
+        Ok(())
     }
 
     fn match_char(&mut self, expected: char) -> bool {
