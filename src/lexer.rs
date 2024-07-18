@@ -34,6 +34,7 @@ pub enum TokenType {
 
     // literals
     Identifier(String),
+    Keyword(KeywordType),
     String(String),
     Number(String, f64),
 
@@ -41,11 +42,32 @@ pub enum TokenType {
     EOF,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum KeywordType {
+    And,
+    Class,
+    Else,
+    False,
+    For,
+    Fun,
+    If,
+    Nil,
+    Or,
+    Print,
+    Return,
+    Super,
+    This,
+    True,
+    Var,
+    While,
+}
+
 pub struct Lexer<'a> {
     text: &'a str,
     line: i32,
     pos: Option<usize>,
-    iter: std::iter::Peekable<std::str::Chars<'a>>
+    iter: std::iter::Peekable<std::str::Chars<'a>>,
+    keywords: std::collections::HashMap<&'static str, KeywordType>,
 }
 
 impl<'a> Lexer<'a> {
@@ -54,7 +76,25 @@ impl<'a> Lexer<'a> {
             text: text,
             line: 1,
             pos: None,
-            iter: text.chars().peekable()
+            iter: text.chars().peekable(),
+            keywords: std::collections::HashMap::from([
+                ("and", KeywordType::And),
+                ("class", KeywordType::Class),
+                ("else", KeywordType::Else),
+                ("false", KeywordType::False),
+                ("for", KeywordType::For),
+                ("fun", KeywordType::Fun),
+                ("if", KeywordType::If),
+                ("nil", KeywordType::Nil),
+                ("or", KeywordType::Or),
+                ("print", KeywordType::Print),
+                ("return", KeywordType::Return),
+                ("super", KeywordType::Super),
+                ("this", KeywordType::This),
+                ("true", KeywordType::True),
+                ("var", KeywordType::Var),
+                ("while", KeywordType::While),
+            ]),
         }
     }
 
@@ -92,6 +132,7 @@ impl<'a> Lexer<'a> {
                 '<' => if self.match_char('=') { self.add_token(TokenType::LessEqual) } else { self.add_token(TokenType::Less) },
                 '>' => if self.match_char('=') { self.add_token(TokenType::GreaterEqual) } else { self.add_token(TokenType::Greater) },
                 // identifiers
+                // strings
                 '"' => {
                     if !self.string() {
                         lexical_failure = true;
@@ -101,18 +142,19 @@ impl<'a> Lexer<'a> {
                     if unmatched.is_whitespace() {
                         continue;
                     }
+                    // numbers
                     if unmatched.is_ascii_digit() {
                         if let Ok(_) = self.number() {
                             continue;
                         }
                     }
+                    // identifiers and keywords
                     if unmatched.is_ascii_alphabetic() || unmatched == '_' {
                         if let Ok(_) = self.identifier() {
                             continue;
                         }
                     }
 
-                    // this should change in the future
                     self.report(self.line, &format!("Unexpected character: {}", unmatched));
                     lexical_failure = true;
                 }
@@ -166,6 +208,27 @@ impl<'a> Lexer<'a> {
                     println!("NUMBER {str} {num}");
                 }
             }
+            TokenType::Keyword(keyword) => {
+                let keyword_str = match keyword {
+                    KeywordType::And => "AND and",
+                    KeywordType::Class => "CLASS class",
+                    KeywordType::Else => "ELSE else",
+                    KeywordType::False => "FALSE false",
+                    KeywordType::For => "FOR for",
+                    KeywordType::Fun => "FUN fun",
+                    KeywordType::If => "IF if",
+                    KeywordType::Nil => "NIL nil",
+                    KeywordType::Or => "OR or",
+                    KeywordType::Print => "PRINT print",
+                    KeywordType::Return => "RETURN return",
+                    KeywordType::Super => "SUPER super",
+                    KeywordType::This => "THIS this",
+                    KeywordType::True => "TRUE true",
+                    KeywordType::Var => "VAR var",
+                    KeywordType::While => "WHILE while",
+                };
+                println!("{keyword_str} null");
+            }
 
             TokenType::EOF => println!("EOF  null"),
             //_ => unimplemented!("Unimplemented token type {token:?}"),
@@ -203,7 +266,12 @@ impl<'a> Lexer<'a> {
         }
 
         let lexeme = self.get_lexeme(start, self.pos());
-        self.add_token(TokenType::Identifier(lexeme));
+        if let Some(keyword) = self.keywords.get(lexeme.as_str()) {
+            self.add_token(TokenType::Keyword(*keyword));
+        }
+        else {
+            self.add_token(TokenType::Identifier(lexeme));
+        }
 
         Ok(())
     }
@@ -282,7 +350,6 @@ impl<'a> Lexer<'a> {
         true
     }
 }
-
 
 fn is_digit(chr: Option<char>) -> bool {
     match chr {
