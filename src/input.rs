@@ -26,7 +26,7 @@ impl<'a> Input<'a> {
         // for now, we don't support line spanning lexemes
         if chr.unwrap() == '\n' {
             self.line += 1;
-            self.pos = 0;
+            //self.pos = 0;
         }
         else {
             self.pos += 1;
@@ -43,8 +43,15 @@ impl<'a> Input<'a> {
         self.pos
     }
 
-    pub fn peek(&mut self) -> Option<&char> {
-        self.iter.peek()
+    pub fn peek(&mut self) -> Option<char> {
+        match self.iter.peek() {
+            Some(chr) => Some(*chr),
+            None => None,
+        }
+    }
+
+    pub fn peek_to(&mut self, n: usize) -> Option<char> {
+        self.iter.clone().nth(n)
     }
 
     pub fn get_lexeme(&self, start: usize, end: usize) -> String {
