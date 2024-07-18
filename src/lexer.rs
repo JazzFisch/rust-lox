@@ -198,7 +198,7 @@ impl<'a> Lexer<'a> {
 
     fn identifier(&mut self) -> Result<(), InterpreterError> {
         let start = self.pos();
-        while self.peek().map_or(false, |chr| chr.is_ascii_alphabetic() || chr == '_') {
+        while self.peek().map_or(false, |chr| chr.is_ascii_alphanumeric() || chr == '_') {
             self.advance();
         }
 
