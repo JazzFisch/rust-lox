@@ -1,9 +1,29 @@
-use std::io::{self, Write};
+use std::{fmt::Display, io::{self, Write}};
 use anyhow::Result;
 
 use crate::InterpreterError;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum KeywordType {
+    And,
+    Class,
+    Else,
+    False,
+    For,
+    Fun,
+    If,
+    Nil,
+    Or,
+    Print,
+    Return,
+    Super,
+    This,
+    True,
+    Var,
+    While,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum TokenType {
     // grouping tokens
     LeftParen,
@@ -42,24 +62,63 @@ pub enum TokenType {
     EOF,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum KeywordType {
-    And,
-    Class,
-    Else,
-    False,
-    For,
-    Fun,
-    If,
-    Nil,
-    Or,
-    Print,
-    Return,
-    Super,
-    This,
-    True,
-    Var,
-    While,
+impl Display for KeywordType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            KeywordType::And => write!(f, "and"),
+            KeywordType::Class => write!(f, "class"),
+            KeywordType::Else => write!(f, "else"),
+            KeywordType::False => write!(f, "false"),
+            KeywordType::For => write!(f, "for"),
+            KeywordType::Fun => write!(f, "fun"),
+            KeywordType::If => write!(f, "if"),
+            KeywordType::Nil => write!(f, "nil"),
+            KeywordType::Or => write!(f, "or"),
+            KeywordType::Print => write!(f, "print"),
+            KeywordType::Return => write!(f, "return"),
+            KeywordType::Super => write!(f, "super"),
+            KeywordType::This => write!(f, "this"),
+            KeywordType::True => write!(f, "true"),
+            KeywordType::Var => write!(f, "var"),
+            KeywordType::While => write!(f, "while"),
+        }
+    }
+}
+
+// how to incorporate this in the future?
+impl Display for TokenType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TokenType::LeftParen => write!(f, "("),
+            TokenType::RightParen => write!(f, ")"),
+            TokenType::LeftBrace =>  write!(f, "{{"),
+            TokenType::RightBrace => write!(f, "}}"),
+
+            TokenType::Comma => write!(f, ","),
+            TokenType::Dot => write!(f, "."),
+            TokenType::Semicolon => write!(f, ";"),
+            TokenType::Minus => write!(f, "-"),
+            TokenType::Plus => write!(f, "+"),
+            TokenType::Slash => write!(f, "/"),
+            TokenType::Star => write!(f, "*"),
+
+            TokenType::Bang => write!(f, "!"),
+            TokenType::BangEqual => write!(f, "!!"),
+            TokenType::Equal => write!(f, "="),
+            TokenType::EqualEqual => write!(f, "=="),
+            TokenType::Greater => write!(f, ">"),
+            TokenType::GreaterEqual => write!(f, ">="),
+            TokenType::Less => write!(f, "<"),
+            TokenType::LessEqual => write!(f, "<="),
+
+            TokenType::Identifier(_) => write!(f, "IDENTIFIER"),
+            TokenType::Keyword(_) => write!(f, "KEYWORD"),
+            TokenType::String(_) => write!(f, "STRING"),
+            TokenType::Number(_, _) => write!(f, "NUMBER"),
+
+            TokenType::EOF => write!(f, "EOF"),
+        }
+    }
 }
 
 pub struct Lexer<'a> {
@@ -68,6 +127,7 @@ pub struct Lexer<'a> {
     pos: Option<usize>,
     iter: std::iter::Peekable<std::str::Chars<'a>>,
     keywords: std::collections::HashMap<&'static str, KeywordType>,
+    tokens: Vec<TokenType>,
 }
 
 impl<'a> Lexer<'a> {
@@ -77,6 +137,8 @@ impl<'a> Lexer<'a> {
             line: 1,
             pos: None,
             iter: text.chars().peekable(),
+            tokens: Vec::new(),
+            // there must be a better way to do this
             keywords: std::collections::HashMap::from([
                 ("and", KeywordType::And),
                 ("class", KeywordType::Class),
@@ -98,7 +160,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    pub fn tokenize(&mut self) -> Result<(), InterpreterError> {
+    pub fn tokenize(&mut self, print_tokens: bool) -> Result<Vec<TokenType>, InterpreterError> {
         let mut lexical_failure = false;
 
         while let Some(chr) = self.advance() {
@@ -164,14 +226,20 @@ impl<'a> Lexer<'a> {
         io::stderr().flush().unwrap();
         self.add_token(TokenType::EOF);
 
+        if print_tokens {
+            for token in &self.tokens {
+                self.print_token(token);
+            }
+        }
+
         if lexical_failure {
             return Err(InterpreterError::LexicalFailure);
         }
 
-        Ok(())
+        Ok(self.tokens.clone())
     }
 
-    fn add_token(&self, token: TokenType) {
+    pub fn print_token(&self, token: &TokenType) {
         match token {
             // grouping tokens
             TokenType::LeftParen => println!("LEFT_PAREN ( null"),
@@ -197,11 +265,11 @@ impl<'a> Lexer<'a> {
             TokenType::Less => println!("LESS < null"),
             TokenType::LessEqual => println!("LESS_EQUAL <= null"),
             // literals
-            TokenType::Identifier(str) => println!("IDENTIFIER {str} null"),
-            TokenType::String(str) => println!("STRING \"{str}\" {str}"),
+            TokenType::Identifier(ref str) => println!("IDENTIFIER {0} null", &str),
+            TokenType::String(ref str) => println!("STRING \"{0}\" {0}", &str),
             TokenType::Number(str, num) => {
                 // this is a hack to get the output to match the book
-                if f64::trunc(num) == num {
+                if f64::trunc(*num) == *num {
                     println!("NUMBER {str} {num:.1}");
                 }
                 else {
@@ -231,11 +299,12 @@ impl<'a> Lexer<'a> {
             }
 
             TokenType::EOF => println!("EOF  null"),
-            //_ => unimplemented!("Unimplemented token type {token:?}"),
         }
-
     }
 
+    fn add_token(&mut self, token: TokenType) {
+        self.tokens.push(token);
+    }
 
     fn advance(&mut self) -> Option<char> {
         let chr = self.iter.next();
