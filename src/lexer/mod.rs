@@ -1,133 +1,15 @@
-use std::{fmt::Display, io::{self, Write}};
+use std::io::{self, Write};
 use anyhow::Result;
 
-use crate::InterpreterError;
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum KeywordType {
-    And,
-    Class,
-    Else,
-    False,
-    For,
-    Fun,
-    If,
-    Nil,
-    Or,
-    Print,
-    Return,
-    Super,
-    This,
-    True,
-    Var,
-    While,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum TokenType {
-    // grouping tokens
-    LeftParen,
-    RightParen,
-    LeftBrace,
-    RightBrace,
-
-    // separator tokens
-    Comma,
-    Dot,
-    Semicolon,
-
-    // arithmetic tokens
-    Minus,
-    Plus,
-    Slash,
-    Star,
-
-    // comparison tokens
-    Bang,
-    BangEqual,
-    Equal,
-    EqualEqual,
-    Greater,
-    GreaterEqual,
-    Less,
-    LessEqual,
-
-    // literals
-    Identifier(String),
-    Keyword(KeywordType),
-    String(String),
-    Number(String, f64),
-
-    // special tokens
-    EOF,
-}
-
-impl Display for KeywordType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            KeywordType::And => write!(f, "and"),
-            KeywordType::Class => write!(f, "class"),
-            KeywordType::Else => write!(f, "else"),
-            KeywordType::False => write!(f, "false"),
-            KeywordType::For => write!(f, "for"),
-            KeywordType::Fun => write!(f, "fun"),
-            KeywordType::If => write!(f, "if"),
-            KeywordType::Nil => write!(f, "nil"),
-            KeywordType::Or => write!(f, "or"),
-            KeywordType::Print => write!(f, "print"),
-            KeywordType::Return => write!(f, "return"),
-            KeywordType::Super => write!(f, "super"),
-            KeywordType::This => write!(f, "this"),
-            KeywordType::True => write!(f, "true"),
-            KeywordType::Var => write!(f, "var"),
-            KeywordType::While => write!(f, "while"),
-        }
-    }
-}
-
-// how to incorporate this in the future?
-impl Display for TokenType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TokenType::LeftParen => write!(f, "("),
-            TokenType::RightParen => write!(f, ")"),
-            TokenType::LeftBrace =>  write!(f, "{{"),
-            TokenType::RightBrace => write!(f, "}}"),
-
-            TokenType::Comma => write!(f, ","),
-            TokenType::Dot => write!(f, "."),
-            TokenType::Semicolon => write!(f, ";"),
-            TokenType::Minus => write!(f, "-"),
-            TokenType::Plus => write!(f, "+"),
-            TokenType::Slash => write!(f, "/"),
-            TokenType::Star => write!(f, "*"),
-
-            TokenType::Bang => write!(f, "!"),
-            TokenType::BangEqual => write!(f, "!!"),
-            TokenType::Equal => write!(f, "="),
-            TokenType::EqualEqual => write!(f, "=="),
-            TokenType::Greater => write!(f, ">"),
-            TokenType::GreaterEqual => write!(f, ">="),
-            TokenType::Less => write!(f, "<"),
-            TokenType::LessEqual => write!(f, "<="),
-
-            TokenType::Identifier(_) => write!(f, "IDENTIFIER"),
-            TokenType::Keyword(_) => write!(f, "KEYWORD"),
-            TokenType::String(_) => write!(f, "STRING"),
-            TokenType::Number(_, _) => write!(f, "NUMBER"),
-
-            TokenType::EOF => write!(f, "EOF"),
-        }
-    }
-}
+use crate::{token::{keyword_type::KeywordType, token_type::TokenType, Token, TokenValue}, InterpreterError};
 
 pub struct Lexer<'a> {
     text: &'a str,
-    line: i32,
+    line: usize,
     pos: Option<usize>,
     iter: std::iter::Peekable<std::str::Chars<'a>>,
     keywords: std::collections::HashMap<&'static str, KeywordType>,
-    tokens: Vec<TokenType>,
+    tokens: Vec<Token>,
 }
 
 impl<'a> Lexer<'a> {
@@ -160,24 +42,24 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    pub fn tokenize(&mut self, print_tokens: bool) -> Result<Vec<TokenType>, InterpreterError> {
+    pub fn tokenize(&mut self, print_tokens: bool) -> Result<Vec<Token>, InterpreterError> {
         let mut lexical_failure = false;
 
         while let Some(chr) = self.advance() {
             match chr {
                 // grouping tokens
-                '(' => self.add_token(TokenType::LeftParen),
-                ')' => self.add_token(TokenType::RightParen),
-                '{' => self.add_token(TokenType::LeftBrace),
-                '}' => self.add_token(TokenType::RightBrace),
+                '(' => self.add_token(Token::new_character(self.line, TokenType::LeftParen)),
+                ')' => self.add_token(Token::new_character(self.line, TokenType::RightParen)),
+                '{' => self.add_token(Token::new_character(self.line, TokenType::LeftBrace)),
+                '}' => self.add_token(Token::new_character(self.line, TokenType::RightBrace)),
                 // separator tokens
-                ',' => self.add_token(TokenType::Comma),
-                '.' => self.add_token(TokenType::Dot),
-                ';' => self.add_token(TokenType::Semicolon),
+                ',' => self.add_token(Token::new_character(self.line, TokenType::Comma)),
+                '.' => self.add_token(Token::new_character(self.line, TokenType::Dot)),
+                ';' => self.add_token(Token::new_character(self.line, TokenType::Semicolon)),
                 // arithmetic tokens
-                '-' => self.add_token(TokenType::Minus),
-                '+' => self.add_token(TokenType::Plus),
-                '*' => self.add_token(TokenType::Star),
+                '-' => self.add_token(Token::new_character(self.line, TokenType::Minus)),
+                '+' => self.add_token(Token::new_character(self.line, TokenType::Plus)),
+                '*' => self.add_token(Token::new_character(self.line, TokenType::Star)),
                 '/' => {
                     if self.peek() == Some('/') {
                         while self.peek() != Some('\n') && self.peek() != None {
@@ -185,14 +67,14 @@ impl<'a> Lexer<'a> {
                         }
                     }
                     else {
-                        self.add_token(TokenType::Slash);
+                        self.add_token(Token::new_character(self.line, TokenType::Slash));
                     }
                 },
                 // comparison tokens
-                '=' => if self.match_char('=') { self.add_token(TokenType::EqualEqual) } else { self.add_token(TokenType::Equal) },
-                '!' => if self.match_char('=') { self.add_token(TokenType::BangEqual) } else { self.add_token(TokenType::Bang) },
-                '<' => if self.match_char('=') { self.add_token(TokenType::LessEqual) } else { self.add_token(TokenType::Less) },
-                '>' => if self.match_char('=') { self.add_token(TokenType::GreaterEqual) } else { self.add_token(TokenType::Greater) },
+                '=' => if self.match_char('=') { self.add_token(Token::new_character(self.line, TokenType::EqualEqual)) } else { self.add_token(Token::new_character(self.line, TokenType::Equal)) },
+                '!' => if self.match_char('=') { self.add_token(Token::new_character(self.line, TokenType::BangEqual)) } else { self.add_token(Token::new_character(self.line, TokenType::Bang)) },
+                '<' => if self.match_char('=') { self.add_token(Token::new_character(self.line, TokenType::LessEqual)) } else { self.add_token(Token::new_character(self.line, TokenType::Less)) },
+                '>' => if self.match_char('=') { self.add_token(Token::new_character(self.line, TokenType::GreaterEqual)) } else { self.add_token(Token::new_character(self.line, TokenType::Greater)) },
                 // identifiers
                 // strings
                 '"' => {
@@ -224,7 +106,7 @@ impl<'a> Lexer<'a> {
         }
 
         io::stderr().flush().unwrap();
-        self.add_token(TokenType::EOF);
+        self.add_token(Token::new(TokenType::Eof, self.line, None, TokenValue::None));
 
         if print_tokens {
             for token in &self.tokens {
@@ -239,8 +121,8 @@ impl<'a> Lexer<'a> {
         Ok(self.tokens.clone())
     }
 
-    pub fn print_token(&self, token: &TokenType) {
-        match token {
+    pub fn print_token(&self, token: &Token) {
+        match token.token_type {
             // grouping tokens
             TokenType::LeftParen => println!("LEFT_PAREN ( null"),
             TokenType::RightParen => println!("RIGHT_PAREN ) null"),
@@ -265,44 +147,66 @@ impl<'a> Lexer<'a> {
             TokenType::Less => println!("LESS < null"),
             TokenType::LessEqual => println!("LESS_EQUAL <= null"),
             // literals
-            TokenType::Identifier(ref str) => println!("IDENTIFIER {0} null", &str),
-            TokenType::String(ref str) => println!("STRING \"{0}\" {0}", &str),
-            TokenType::Number(str, num) => {
-                // this is a hack to get the output to match the book
-                if f64::trunc(*num) == *num {
-                    println!("NUMBER {str} {num:.1}");
+            TokenType::Identifier => {
+                if let TokenValue::Identifier(value) = &token.value {
+                    println!("IDENTIFIER {0} null", value);
+                    return;
                 }
-                else {
-                    println!("NUMBER {str} {num}");
+                unreachable!("Expected identifier.  Found {:?}", token.value);
+            },
+            TokenType::String => {
+                if let TokenValue::String(value) = &token.value {
+                    println!("STRING \"{0}\" {0}", value);
+                    return;
+                }
+                unreachable!("Expected string.  Found {:?}", token.value);
+            },
+            TokenType::Number => {
+                // this is a hack to get the output to match the book
+                if let TokenValue::Number(value) = token.value {
+                    if let Some(lexeme) = &token.lexeme {
+                        if f64::trunc(value) == value {
+                            println!("NUMBER {} {:.1}", lexeme, value);
+                        }
+                        else {
+                            println!("NUMBER {} {}", lexeme, value);
+                        }
+                        return;
+                    }
+                    unreachable!("Expected lexeme.  Found {:?}", token.lexeme);
                 }
             }
-            TokenType::Keyword(keyword) => {
-                let keyword_str = match keyword {
-                    KeywordType::And => "AND and",
-                    KeywordType::Class => "CLASS class",
-                    KeywordType::Else => "ELSE else",
-                    KeywordType::False => "FALSE false",
-                    KeywordType::For => "FOR for",
-                    KeywordType::Fun => "FUN fun",
-                    KeywordType::If => "IF if",
-                    KeywordType::Nil => "NIL nil",
-                    KeywordType::Or => "OR or",
-                    KeywordType::Print => "PRINT print",
-                    KeywordType::Return => "RETURN return",
-                    KeywordType::Super => "SUPER super",
-                    KeywordType::This => "THIS this",
-                    KeywordType::True => "TRUE true",
-                    KeywordType::Var => "VAR var",
-                    KeywordType::While => "WHILE while",
-                };
-                println!("{keyword_str} null");
+            TokenType::Keyword => {
+                if let TokenValue::Keyword(keyword) = token.value {
+                    let keyword_str = match keyword {
+                        KeywordType::And => "AND and",
+                        KeywordType::Class => "CLASS class",
+                        KeywordType::Else => "ELSE else",
+                        KeywordType::False => "FALSE false",
+                        KeywordType::For => "FOR for",
+                        KeywordType::Fun => "FUN fun",
+                        KeywordType::If => "IF if",
+                        KeywordType::Nil => "NIL nil",
+                        KeywordType::Or => "OR or",
+                        KeywordType::Print => "PRINT print",
+                        KeywordType::Return => "RETURN return",
+                        KeywordType::Super => "SUPER super",
+                        KeywordType::This => "THIS this",
+                        KeywordType::True => "TRUE true",
+                        KeywordType::Var => "VAR var",
+                        KeywordType::While => "WHILE while",
+                    };
+                    println!("{keyword_str} null");
+                    return;
+                }
+                unreachable!("Expected keyword.  Found {:?}", token.value);
             }
 
-            TokenType::EOF => println!("EOF  null"),
+            TokenType::Eof => println!("EOF  null"),
         }
     }
 
-    fn add_token(&mut self, token: TokenType) {
+    fn add_token(&mut self, token: Token) {
         self.tokens.push(token);
     }
 
@@ -336,10 +240,10 @@ impl<'a> Lexer<'a> {
 
         let lexeme = self.get_lexeme(start, self.pos());
         if let Some(keyword) = self.keywords.get(lexeme.as_str()) {
-            self.add_token(TokenType::Keyword(*keyword));
+            self.add_token(Token::new_keyword(self.line, *keyword));
         }
         else {
-            self.add_token(TokenType::Identifier(lexeme));
+            self.add_token(Token::new_identifier(self.line, lexeme));
         }
 
         Ok(())
@@ -372,7 +276,7 @@ impl<'a> Lexer<'a> {
 
         let lexeme = self.get_lexeme(start, self.pos());
         let value = lexeme.parse::<f64>().unwrap();
-        self.add_token(TokenType::Number(lexeme, value));
+        self.add_token(Token::new_number(self.line, lexeme, value));
 
         Ok(())
     }
@@ -392,7 +296,7 @@ impl<'a> Lexer<'a> {
         self.pos.unwrap()
     }
 
-    fn report(&self, line: i32, message: &str) {
+    fn report(&self, line: usize, message: &str) {
         writeln!(io::stderr(), "[line {}] Error: {}", line, message).unwrap();
     }
 
@@ -415,7 +319,7 @@ impl<'a> Lexer<'a> {
 
         // trim the surrounding quotes
         let lexeme = self.get_lexeme(start + 1, self.pos() - 1);
-        self.add_token(TokenType::String(lexeme));
+        self.add_token(Token::new_string(self.line, lexeme));
         true
     }
 }

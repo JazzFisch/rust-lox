@@ -3,10 +3,11 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
 use anyhow::Result;
-use lexer::TokenType;
+use token::Token;
 
 mod lexer;
 mod parser;
+mod token;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum InterpreterError {
@@ -18,6 +19,9 @@ pub enum InterpreterError {
 
     #[error("Lexical failure")]
     LexicalFailure,
+
+    #[error("Parser failure")]
+    ParserFailure,
 
     #[error("Failed to read file {0}")]
     InvalidFile(String),
@@ -44,9 +48,8 @@ fn main() -> Result<()> {
     if error.is_some() {
         let error = error.unwrap();
         let exit_code = match error {
-            InterpreterError::InvalidCommand(_, _) => 64,
-            InterpreterError::InvalidFile(_) => 64,
-            InterpreterError::LexicalFailure => 65,
+            InterpreterError::InvalidCommand(_, _) | InterpreterError::InvalidFile(_) => 64,
+            InterpreterError::LexicalFailure | InterpreterError::ParserFailure => 65,
             _ => 1,
         };
 
@@ -86,12 +89,23 @@ fn parse_file(filename: &String) -> Result<(), InterpreterError> {
     let tokens = tokenize_file(filename, false)?;
     let mut parser = parser::Parser::new(tokens);
     let expression = parser.parse();
-    let printer = parser::AstPrinter;
-    println!("{}", printer.print(&expression));
+    let printer = parser::ast_printer::AstPrinter;
+
+    match expression {
+        Ok(expression) => println!("{}", printer.print(&expression)),
+        Err(_) => {
+            return Err(InterpreterError::ParserFailure);
+        }
+    }
+
+    if parser.failed() {
+        return Err(InterpreterError::ParserFailure);
+    }
+
     Ok(())
 }
 
-fn tokenize_file(filename: &String, print_tokens: bool) -> Result<Vec<TokenType>, InterpreterError> {
+fn tokenize_file(filename: &String, print_tokens: bool) -> Result<Vec<Token>, InterpreterError> {
     let file_contents = fs::read_to_string(filename);
     if file_contents.is_err() {
         return Err(InterpreterError::InvalidFile(filename.into()));
