@@ -171,12 +171,11 @@ impl Parser {
             return Ok(Expression::Grouping(Box::new(expr)));
         }
 
-        let next = self.peek();
-        let token = match next {
+        let token = match self.peek() {
             Some(token) => token.clone(),
             None => Token::new_eof(0),
         };
-        Err(self.error(&token, format!("Unexpected token: {}", token.token_type).as_str()))
+        Err(self.error(&token, "Expect expression."))
     }
 
     fn report(&self, line: usize, location: &str, message: &str) {
