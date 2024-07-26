@@ -7,6 +7,19 @@ use crate::token::{keyword_type::KeywordType, token_type::TokenType, Token, Toke
 pub mod ast_printer;
 pub mod parse_error;
 
+macro_rules! match_tokens {
+    ($self:expr, $($token:expr),* $(,)?) => {{
+        $(
+            if $self.check($token) {
+                $self.advance();
+                true
+            } else
+        )* {
+            false
+        }
+    }};
+}
+
 pub enum Expression {
     Binary(Box<Expression>, Token, Box<Expression>),
     Grouping(Box<Expression>),
@@ -53,7 +66,7 @@ impl Parser {
     fn comparison(&mut self) -> Result<Expression, ParseError> {
         let mut expr = self.term()?;
 
-        while self.match_tokens(&[TokenType::Greater, TokenType::GreaterEqual, TokenType::Less, TokenType::LessEqual]) {
+        while match_tokens!(self, TokenType::Greater, TokenType::GreaterEqual, TokenType::Less, TokenType::LessEqual) {
             let operator = self.previous().unwrap().clone();
             let right = self.term()?;
             expr = Expression::Binary(Box::new(expr), operator, Box::new(right));
@@ -89,7 +102,7 @@ impl Parser {
     fn equality(&mut self) -> Result<Expression, ParseError> {
         let mut expr = self.comparison()?;
 
-        while self.match_tokens(&[TokenType::BangEqual, TokenType::EqualEqual]) {
+        while match_tokens!(self, TokenType::BangEqual, TokenType::EqualEqual) {
             let operator = self.previous().unwrap().clone();
             let right = self.comparison()?;
             expr = Expression::Binary(Box::new(expr), operator, Box::new(right));
@@ -105,7 +118,7 @@ impl Parser {
     fn factor(&mut self) -> Result<Expression, ParseError> {
         let mut expr = self.unary()?;
 
-        while self.match_tokens(&[TokenType::Slash, TokenType::Star]) {
+        while match_tokens!(self, TokenType::Slash, TokenType::Star) {
             let operator = self.previous().unwrap().clone();
             let right = self.unary()?;
             expr = Expression::Binary(Box::new(expr), operator, Box::new(right));
@@ -129,17 +142,6 @@ impl Parser {
         false
     }
 
-    fn match_tokens(&mut self, token_types: &[TokenType]) -> bool {
-        for token_type in token_types {
-            if self.check(*token_type) {
-                self.advance();
-                return true;
-            }
-        }
-
-        false
-    }
-
     fn peek(&self) -> Option<&Token> {
         self.tokens.get(self.current)
     }
@@ -155,12 +157,12 @@ impl Parser {
         }
 
         // special case for number and string literals
-        if self.match_tokens(&[TokenType::Number, TokenType::String]) {
+        if match_tokens!(self, TokenType::Number, TokenType::String) {
             let previous = self.previous().unwrap();
             return Ok(Expression::Literal(previous.clone()));
         }
 
-        if self.match_tokens(&[TokenType::LeftParen]) {
+        if match_tokens!(self, TokenType::LeftParen) {
             let expr = self.expression()?;
             if let Err(err) =  self.consume(TokenType::RightParen, "Expect ')' after expression.") {
                 self.synchronize();
@@ -211,7 +213,7 @@ impl Parser {
     fn term(&mut self) -> Result<Expression, ParseError> {
         let mut expr = self.factor()?;
 
-        while self.match_tokens(&[TokenType::Minus, TokenType::Plus]) {
+        while match_tokens!(self, TokenType::Minus, TokenType::Plus) {
             let operator = self.previous().unwrap().clone();
             let right = self.factor()?;
             expr = Expression::Binary(Box::new(expr), operator, Box::new(right));
@@ -221,7 +223,7 @@ impl Parser {
     }
 
     fn unary(&mut self) -> Result<Expression, ParseError> {
-        if self.match_tokens(&[TokenType::Bang, TokenType::Minus]) {
+        if match_tokens!(self, TokenType::Bang, TokenType::Minus) {
             let operator = self.previous().unwrap().clone();
             let right = self.unary()?;
             return Ok(Expression::Unary(operator, Box::new(right)));
@@ -230,35 +232,3 @@ impl Parser {
         self.primary()
     }
 }
-
-
-// TODO: someday figure out how to make this macro work
-// macro_rules! match_tokens {
-//     ($self:expr, $($token:expr),* $(,)?) => {{
-//         $(
-//             if $self.check(&$token) {
-//                 $self.advance();
-//                 true
-//             } else
-//         )* {
-//             false
-//         }
-//     }};
-// }
-
-// macro_rules! match_tokens {
-//     ($self:expr, $($token:expr),* $(,)?) => {{
-//         let token = $self.peek();
-//         if token.is_none() {
-//             return false;
-//         }
-
-//         match token.unwrap() {
-//             $(TokenType::$token)|* => {
-//                 $self.advance();
-//                 true
-//             },
-//             _ => false
-//         }
-//     }};
-// }

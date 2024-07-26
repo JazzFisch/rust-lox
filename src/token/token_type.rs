@@ -54,7 +54,7 @@ impl Display for TokenType {
             TokenType::Slash => write!(f, "/"),
             TokenType::Star => write!(f, "*"),
             TokenType::Bang => write!(f, "!"),
-            TokenType::BangEqual => write!(f, "!!"),
+            TokenType::BangEqual => write!(f, "!="),
             TokenType::Equal => write!(f, "="),
             TokenType::EqualEqual => write!(f, "=="),
             TokenType::Greater => write!(f, ">"),
