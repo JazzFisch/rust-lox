@@ -1,15 +1,22 @@
 use std::io::{self, Write};
 use anyhow::Result;
 
-use crate::{token::{keyword_type::KeywordType, token_type::TokenType, Token, TokenValue}, InterpreterError};
+use crate::{token::{token_type::TokenType, Token, TokenValue}, InterpreterError};
 
 pub struct Lexer<'a> {
     text: &'a str,
     line: usize,
     pos: Option<usize>,
     iter: std::iter::Peekable<std::str::Chars<'a>>,
-    keywords: std::collections::HashMap<&'static str, KeywordType>,
+    keywords: std::collections::HashMap<&'static str, TokenType>,
     tokens: Vec<Token>,
+}
+
+fn is_digit(chr: Option<char>) -> bool {
+    match chr {
+        Some(chr) => chr.is_ascii_digit(),
+        None => false,
+    }
 }
 
 impl<'a> Lexer<'a> {
@@ -22,22 +29,22 @@ impl<'a> Lexer<'a> {
             tokens: Vec::new(),
             // there must be a better way to do this
             keywords: std::collections::HashMap::from([
-                ("and", KeywordType::And),
-                ("class", KeywordType::Class),
-                ("else", KeywordType::Else),
-                ("false", KeywordType::False),
-                ("for", KeywordType::For),
-                ("fun", KeywordType::Fun),
-                ("if", KeywordType::If),
-                ("nil", KeywordType::Nil),
-                ("or", KeywordType::Or),
-                ("print", KeywordType::Print),
-                ("return", KeywordType::Return),
-                ("super", KeywordType::Super),
-                ("this", KeywordType::This),
-                ("true", KeywordType::True),
-                ("var", KeywordType::Var),
-                ("while", KeywordType::While),
+                ("and", TokenType::And),
+                ("class", TokenType::Class),
+                ("else", TokenType::Else),
+                ("false", TokenType::False),
+                ("for", TokenType::For),
+                ("fun", TokenType::Fun),
+                ("if", TokenType::If),
+                ("nil", TokenType::Nil),
+                ("or", TokenType::Or),
+                ("print", TokenType::Print),
+                ("return", TokenType::Return),
+                ("super", TokenType::Super),
+                ("this", TokenType::This),
+                ("true", TokenType::True),
+                ("var", TokenType::Var),
+                ("while", TokenType::While),
             ]),
         }
     }
@@ -48,18 +55,18 @@ impl<'a> Lexer<'a> {
         while let Some(chr) = self.advance() {
             match chr {
                 // grouping tokens
-                '(' => self.add_token(Token::new_character(self.line, TokenType::LeftParen)),
-                ')' => self.add_token(Token::new_character(self.line, TokenType::RightParen)),
-                '{' => self.add_token(Token::new_character(self.line, TokenType::LeftBrace)),
-                '}' => self.add_token(Token::new_character(self.line, TokenType::RightBrace)),
+                '(' => self.add_token(Token::from_token_type(self.line, TokenType::LeftParen)),
+                ')' => self.add_token(Token::from_token_type(self.line, TokenType::RightParen)),
+                '{' => self.add_token(Token::from_token_type(self.line, TokenType::LeftBrace)),
+                '}' => self.add_token(Token::from_token_type(self.line, TokenType::RightBrace)),
                 // separator tokens
-                ',' => self.add_token(Token::new_character(self.line, TokenType::Comma)),
-                '.' => self.add_token(Token::new_character(self.line, TokenType::Dot)),
-                ';' => self.add_token(Token::new_character(self.line, TokenType::Semicolon)),
+                ',' => self.add_token(Token::from_token_type(self.line, TokenType::Comma)),
+                '.' => self.add_token(Token::from_token_type(self.line, TokenType::Dot)),
+                ';' => self.add_token(Token::from_token_type(self.line, TokenType::Semicolon)),
                 // arithmetic tokens
-                '-' => self.add_token(Token::new_character(self.line, TokenType::Minus)),
-                '+' => self.add_token(Token::new_character(self.line, TokenType::Plus)),
-                '*' => self.add_token(Token::new_character(self.line, TokenType::Star)),
+                '-' => self.add_token(Token::from_token_type(self.line, TokenType::Minus)),
+                '+' => self.add_token(Token::from_token_type(self.line, TokenType::Plus)),
+                '*' => self.add_token(Token::from_token_type(self.line, TokenType::Star)),
                 '/' => {
                     if self.peek() == Some('/') {
                         while self.peek() != Some('\n') && self.peek() != None {
@@ -67,14 +74,14 @@ impl<'a> Lexer<'a> {
                         }
                     }
                     else {
-                        self.add_token(Token::new_character(self.line, TokenType::Slash));
+                        self.add_token(Token::from_token_type(self.line, TokenType::Slash));
                     }
                 },
                 // comparison tokens
-                '=' => if self.match_char('=') { self.add_token(Token::new_character(self.line, TokenType::EqualEqual)) } else { self.add_token(Token::new_character(self.line, TokenType::Equal)) },
-                '!' => if self.match_char('=') { self.add_token(Token::new_character(self.line, TokenType::BangEqual)) } else { self.add_token(Token::new_character(self.line, TokenType::Bang)) },
-                '<' => if self.match_char('=') { self.add_token(Token::new_character(self.line, TokenType::LessEqual)) } else { self.add_token(Token::new_character(self.line, TokenType::Less)) },
-                '>' => if self.match_char('=') { self.add_token(Token::new_character(self.line, TokenType::GreaterEqual)) } else { self.add_token(Token::new_character(self.line, TokenType::Greater)) },
+                '=' => if self.match_char('=') { self.add_token(Token::from_token_type(self.line, TokenType::EqualEqual)) } else { self.add_token(Token::from_token_type(self.line, TokenType::Equal)) },
+                '!' => if self.match_char('=') { self.add_token(Token::from_token_type(self.line, TokenType::BangEqual)) } else { self.add_token(Token::from_token_type(self.line, TokenType::Bang)) },
+                '<' => if self.match_char('=') { self.add_token(Token::from_token_type(self.line, TokenType::LessEqual)) } else { self.add_token(Token::from_token_type(self.line, TokenType::Less)) },
+                '>' => if self.match_char('=') { self.add_token(Token::from_token_type(self.line, TokenType::GreaterEqual)) } else { self.add_token(Token::from_token_type(self.line, TokenType::Greater)) },
                 // identifiers
                 // strings
                 '"' => {
@@ -110,7 +117,7 @@ impl<'a> Lexer<'a> {
 
         if print_tokens {
             for token in &self.tokens {
-                self.print_token(token);
+                token.print();
             }
         }
 
@@ -119,91 +126,6 @@ impl<'a> Lexer<'a> {
         }
 
         Ok(self.tokens.clone())
-    }
-
-    pub fn print_token(&self, token: &Token) {
-        match token.token_type {
-            // grouping tokens
-            TokenType::LeftParen => println!("LEFT_PAREN ( null"),
-            TokenType::RightParen => println!("RIGHT_PAREN ) null"),
-            TokenType::LeftBrace => println!("LEFT_BRACE {{ null"),
-            TokenType::RightBrace => println!("RIGHT_BRACE }} null"),
-            // separator tokens
-            TokenType::Comma => println!("COMMA , null"),
-            TokenType::Dot => println!("DOT . null"),
-            TokenType::Semicolon => println!("SEMICOLON ; null"),
-            // arithmetic tokens
-            TokenType::Minus => println!("MINUS - null"),
-            TokenType::Plus => println!("PLUS + null"),
-            TokenType::Star => println!("STAR * null"),
-            TokenType::Slash => println!("SLASH / null"),
-            // comparison tokens
-            TokenType::Equal => println!("EQUAL = null"),
-            TokenType::EqualEqual => println!("EQUAL_EQUAL == null"),
-            TokenType::Bang => println!("BANG ! null"),
-            TokenType::BangEqual => println!("BANG_EQUAL != null"),
-            TokenType::Greater => println!("GREATER > null"),
-            TokenType::GreaterEqual => println!("GREATER_EQUAL >= null"),
-            TokenType::Less => println!("LESS < null"),
-            TokenType::LessEqual => println!("LESS_EQUAL <= null"),
-            // literals
-            TokenType::Identifier => {
-                if let TokenValue::Identifier(value) = &token.value {
-                    println!("IDENTIFIER {0} null", value);
-                    return;
-                }
-                unreachable!("Expected identifier.  Found {:?}", token.value);
-            },
-            TokenType::String => {
-                if let TokenValue::String(value) = &token.value {
-                    println!("STRING \"{0}\" {0}", value);
-                    return;
-                }
-                unreachable!("Expected string.  Found {:?}", token.value);
-            },
-            TokenType::Number => {
-                // this is a hack to get the output to match the book
-                if let TokenValue::Number(value) = token.value {
-                    if let Some(lexeme) = &token.lexeme {
-                        if f64::trunc(value) == value {
-                            println!("NUMBER {} {:.1}", lexeme, value);
-                        }
-                        else {
-                            println!("NUMBER {} {}", lexeme, value);
-                        }
-                        return;
-                    }
-                    unreachable!("Expected lexeme.  Found {:?}", token.lexeme);
-                }
-            }
-            TokenType::Keyword => {
-                if let TokenValue::Keyword(keyword) = token.value {
-                    let keyword_str = match keyword {
-                        KeywordType::And => "AND and",
-                        KeywordType::Class => "CLASS class",
-                        KeywordType::Else => "ELSE else",
-                        KeywordType::False => "FALSE false",
-                        KeywordType::For => "FOR for",
-                        KeywordType::Fun => "FUN fun",
-                        KeywordType::If => "IF if",
-                        KeywordType::Nil => "NIL nil",
-                        KeywordType::Or => "OR or",
-                        KeywordType::Print => "PRINT print",
-                        KeywordType::Return => "RETURN return",
-                        KeywordType::Super => "SUPER super",
-                        KeywordType::This => "THIS this",
-                        KeywordType::True => "TRUE true",
-                        KeywordType::Var => "VAR var",
-                        KeywordType::While => "WHILE while",
-                    };
-                    println!("{keyword_str} null");
-                    return;
-                }
-                unreachable!("Expected keyword.  Found {:?}", token.value);
-            }
-
-            TokenType::Eof => println!("EOF  null"),
-        }
     }
 
     fn add_token(&mut self, token: Token) {
@@ -240,7 +162,7 @@ impl<'a> Lexer<'a> {
 
         let lexeme = self.get_lexeme(start, self.pos());
         if let Some(keyword) = self.keywords.get(lexeme.as_str()) {
-            self.add_token(Token::new_keyword(self.line, *keyword));
+            self.add_token(Token::from_token_type(self.line, *keyword));
         }
         else {
             self.add_token(Token::new_identifier(self.line, lexeme));
@@ -321,12 +243,5 @@ impl<'a> Lexer<'a> {
         let lexeme = self.get_lexeme(start + 1, self.pos() - 1);
         self.add_token(Token::new_string(self.line, lexeme));
         true
-    }
-}
-
-fn is_digit(chr: Option<char>) -> bool {
-    match chr {
-        Some(chr) => chr.is_ascii_digit(),
-        None => false,
     }
 }

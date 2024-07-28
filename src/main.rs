@@ -8,6 +8,7 @@ use token::Token;
 mod lexer;
 mod parser;
 mod token;
+mod visitor;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum InterpreterError {
@@ -89,7 +90,7 @@ fn parse_file(filename: &String) -> Result<(), InterpreterError> {
     let tokens = tokenize_file(filename, false)?;
     let mut parser = parser::Parser::new(tokens);
     let expression = parser.parse();
-    let printer = parser::ast_printer::AstPrinter;
+    let printer = visitor::ast_printer::AstPrinter;
 
     match expression {
         Ok(expression) => println!("{}", printer.print(&expression)),

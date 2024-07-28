@@ -31,12 +31,27 @@ pub enum TokenType {
 
     // literals
     Identifier,
-    Keyword,
     String,
     Number,
 
+    // keywords
+    And, Class, Else, False, Fun, For, If, Nil, Or,
+    Print, Return, Super, This, True, Var, While,
+
     // special tokens
     Eof,
+}
+
+impl TokenType {
+    // pub fn is_keyword(&self) -> bool {
+    //     match self {
+    //         TokenType::And | TokenType::Class | TokenType::Else | TokenType::False |
+    //         TokenType::Fun | TokenType::For | TokenType::If | TokenType::Nil |
+    //         TokenType::Or | TokenType::Print | TokenType::Return | TokenType::Super |
+    //         TokenType::This | TokenType::True | TokenType::Var | TokenType::While => true,
+    //         _ => false,
+    //     }
+    // }
 }
 
 impl Display for TokenType {
@@ -62,10 +77,10 @@ impl Display for TokenType {
             TokenType::Less => write!(f, "<"),
             TokenType::LessEqual => write!(f, "<="),
             TokenType::Identifier => write!(f, "IDENTIFIER"),
-            TokenType::Keyword => write!(f, "KEYWORD"),
             TokenType::String => write!(f, "STRING"),
             TokenType::Number => write!(f, "NUMBER"),
             TokenType::Eof => write!(f, "EOF"),
+            _ => write!(f, "KEYWORD"),
         }
     }
 }

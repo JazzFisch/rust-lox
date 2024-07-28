@@ -1,5 +1,6 @@
 use crate::token::Token;
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct ParseError {
     pub token: Token,

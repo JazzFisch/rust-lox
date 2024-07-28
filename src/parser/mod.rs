@@ -1,11 +1,17 @@
 use std::io::{self, Write};
 
+use expression::Expression;
 use parse_error::ParseError;
 
-use crate::token::{keyword_type::KeywordType, token_type::TokenType, Token, TokenValue};
+use crate::token::{token_type::TokenType, Token};
 
-pub mod ast_printer;
+pub mod ast_visitor;
+pub mod binary_expression;
+pub mod expression;
+pub mod grouping_expression;
+pub mod literal_expression;
 pub mod parse_error;
+pub mod unary_expression;
 
 macro_rules! match_tokens {
     ($self:expr, $($token:expr),* $(,)?) => {{
@@ -18,13 +24,6 @@ macro_rules! match_tokens {
             false
         }
     }};
-}
-
-pub enum Expression {
-    Binary(Box<Expression>, Token, Box<Expression>),
-    Grouping(Box<Expression>),
-    Literal(Token),
-    Unary(Token, Box<Expression>),
 }
 
 pub struct Parser {
@@ -69,7 +68,8 @@ impl Parser {
         while match_tokens!(self, TokenType::Greater, TokenType::GreaterEqual, TokenType::Less, TokenType::LessEqual) {
             let operator = self.previous().unwrap().clone();
             let right = self.term()?;
-            expr = Expression::Binary(Box::new(expr), operator, Box::new(right));
+            let left = expr;
+            expr = Expression::new_binary(left, operator, right);
         }
 
         Ok(expr)
@@ -105,7 +105,8 @@ impl Parser {
         while match_tokens!(self, TokenType::BangEqual, TokenType::EqualEqual) {
             let operator = self.previous().unwrap().clone();
             let right = self.comparison()?;
-            expr = Expression::Binary(Box::new(expr), operator, Box::new(right));
+            let left = expr;
+            expr = Expression::new_binary(left, operator, right);
         }
 
         Ok(expr)
@@ -119,27 +120,13 @@ impl Parser {
         let mut expr = self.unary()?;
 
         while match_tokens!(self, TokenType::Slash, TokenType::Star) {
+            let left = expr;
             let operator = self.previous().unwrap().clone();
             let right = self.unary()?;
-            expr = Expression::Binary(Box::new(expr), operator, Box::new(right));
+            expr = Expression::new_binary(left, operator, right);
         }
 
         Ok(expr)
-    }
-
-    fn match_keywords(&mut self, keyword_types: &[KeywordType]) -> bool {
-        for keyword_type in keyword_types {
-            if self.check(TokenType::Keyword) {
-                if let TokenValue::Keyword(token_keyword) = self.peek().unwrap().value {
-                    if token_keyword == *keyword_type {
-                        self.advance();
-                        return true;
-                    }
-                }
-            }
-        }
-
-        false
     }
 
     fn peek(&self) -> Option<&Token> {
@@ -151,15 +138,17 @@ impl Parser {
     }
 
     fn primary(&mut self) -> Result<Expression, ParseError> {
-        if self.match_keywords(&[KeywordType::False, KeywordType::True, KeywordType::Nil]) {
-            let previous = self.previous().unwrap().clone();
-            return Ok(Expression::Literal(previous));
+        if match_tokens!(self, TokenType::False, TokenType::True, TokenType::Nil) {
+            let token = self.previous().unwrap().clone();
+            let expr = Expression::new_literal(&token);
+            return Ok(expr);
         }
 
         // special case for number and string literals
         if match_tokens!(self, TokenType::Number, TokenType::String) {
-            let previous = self.previous().unwrap();
-            return Ok(Expression::Literal(previous.clone()));
+            let token = self.previous().unwrap();
+            let expr = Expression::new_literal(&token);
+            return Ok(expr);
         }
 
         if match_tokens!(self, TokenType::LeftParen) {
@@ -168,7 +157,8 @@ impl Parser {
                 self.synchronize();
                 return Err(err);
             }
-            return Ok(Expression::Grouping(Box::new(expr)));
+            let expr = Expression::new_grouping(expr);
+            return Ok(expr);
         }
 
         let token = match self.peek() {
@@ -190,19 +180,10 @@ impl Parser {
                 return;
             }
 
-            if self.peek().unwrap().token_type == TokenType::Keyword {
-                match self.peek().unwrap().value {
-                    TokenValue::Keyword(keyword) => {
-                        match keyword {
-                            KeywordType::Class | KeywordType::Fun | KeywordType::Var | KeywordType::For |
-                            KeywordType::If | KeywordType::While | KeywordType::Print | KeywordType::Return => {
-                                return;
-                            }
-                            _ => {}
-                        }
-                    }
-                    _ => {}
-                }
+            match self.peek().unwrap().token_type {
+                TokenType::Class | TokenType::Fun | TokenType::Var | TokenType::For |
+                TokenType::If | TokenType::While | TokenType::Print | TokenType::Return => return,
+                _ => {}
             }
 
             self.advance();
@@ -213,9 +194,10 @@ impl Parser {
         let mut expr = self.factor()?;
 
         while match_tokens!(self, TokenType::Minus, TokenType::Plus) {
+            let left = expr;
             let operator = self.previous().unwrap().clone();
             let right = self.factor()?;
-            expr = Expression::Binary(Box::new(expr), operator, Box::new(right));
+            expr = Expression::new_binary(left, operator, right);
         }
 
         Ok(expr)
@@ -225,7 +207,8 @@ impl Parser {
         if match_tokens!(self, TokenType::Bang, TokenType::Minus) {
             let operator = self.previous().unwrap().clone();
             let right = self.unary()?;
-            return Ok(Expression::Unary(operator, Box::new(right)));
+            let expr = Expression::new_unary(operator, right);
+            return Ok(expr);
         }
 
         self.primary()
