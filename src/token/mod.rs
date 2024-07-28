@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::io::Write;
 
 use token_type::TokenType;
 
@@ -66,62 +67,62 @@ impl Token {
         Self::from_token_type(line, TokenType::Eof)
     }
 
-    pub fn print(&self) {
+    pub fn print(&self, output: &mut dyn Write) -> std::io::Result<()> {
         match self.token_type {
             // grouping tokens
-            TokenType::LeftParen => println!("LEFT_PAREN ( null"),
-            TokenType::RightParen => println!("RIGHT_PAREN ) null"),
-            TokenType::LeftBrace => println!("LEFT_BRACE {{ null"),
-            TokenType::RightBrace => println!("RIGHT_BRACE }} null"),
+            TokenType::LeftParen => writeln!(output, "LEFT_PAREN ( null"),
+            TokenType::RightParen => writeln!(output, "RIGHT_PAREN ) null"),
+            TokenType::LeftBrace => writeln!(output, "LEFT_BRACE {{ null"),
+            TokenType::RightBrace => writeln!(output, "RIGHT_BRACE }} null"),
             // separator tokens
-            TokenType::Comma => println!("COMMA , null"),
-            TokenType::Dot => println!("DOT . null"),
-            TokenType::Semicolon => println!("SEMICOLON ; null"),
+            TokenType::Comma => writeln!(output, "COMMA , null"),
+            TokenType::Dot => writeln!(output, "DOT . null"),
+            TokenType::Semicolon => writeln!(output, "SEMICOLON ; null"),
             // arithmetic tokens
-            TokenType::Minus => println!("MINUS - null"),
-            TokenType::Plus => println!("PLUS + null"),
-            TokenType::Star => println!("STAR * null"),
-            TokenType::Slash => println!("SLASH / null"),
+            TokenType::Minus => writeln!(output, "MINUS - null"),
+            TokenType::Plus => writeln!(output, "PLUS + null"),
+            TokenType::Star => writeln!(output, "STAR * null"),
+            TokenType::Slash => writeln!(output, "SLASH / null"),
             // comparison tokens
-            TokenType::Equal => println!("EQUAL = null"),
-            TokenType::EqualEqual => println!("EQUAL_EQUAL == null"),
-            TokenType::Bang => println!("BANG ! null"),
-            TokenType::BangEqual => println!("BANG_EQUAL != null"),
-            TokenType::Greater => println!("GREATER > null"),
-            TokenType::GreaterEqual => println!("GREATER_EQUAL >= null"),
-            TokenType::Less => println!("LESS < null"),
-            TokenType::LessEqual => println!("LESS_EQUAL <= null"),
+            TokenType::Equal => writeln!(output, "EQUAL = null"),
+            TokenType::EqualEqual => writeln!(output, "EQUAL_EQUAL == null"),
+            TokenType::Bang => writeln!(output, "BANG ! null"),
+            TokenType::BangEqual => writeln!(output, "BANG_EQUAL != null"),
+            TokenType::Greater => writeln!(output, "GREATER > null"),
+            TokenType::GreaterEqual => writeln!(output, "GREATER_EQUAL >= null"),
+            TokenType::Less => writeln!(output, "LESS < null"),
+            TokenType::LessEqual => writeln!(output, "LESS_EQUAL <= null"),
             // keywords
-            TokenType::And => println!("AND and null"),
-            TokenType::Class => println!("CLASS class null"),
-            TokenType::Else => println!("ELSE else null"),
-            TokenType::False => println!("FALSE false null"),
-            TokenType::For => println!("FOR for null"),
-            TokenType::Fun => println!("FUN fun null"),
-            TokenType::If => println!("IF if null"),
-            TokenType::Nil => println!("NIL nil null"),
-            TokenType::Or => println!("OR or null"),
-            TokenType::Print => println!("PRINT print null"),
-            TokenType::Return => println!("RETURN return null"),
-            TokenType::Super => println!("SUPER super null"),
-            TokenType::This => println!("THIS this null"),
-            TokenType::True => println!("TRUE true null"),
-            TokenType::Var => println!("VAR var null"),
-            TokenType::While => println!("WHILE while null"),
+            TokenType::And => writeln!(output, "AND and null"),
+            TokenType::Class => writeln!(output, "CLASS class null"),
+            TokenType::Else => writeln!(output, "ELSE else null"),
+            TokenType::False => writeln!(output, "FALSE false null"),
+            TokenType::For => writeln!(output, "FOR for null"),
+            TokenType::Fun => writeln!(output, "FUN fun null"),
+            TokenType::If => writeln!(output, "IF if null"),
+            TokenType::Nil => writeln!(output, "NIL nil null"),
+            TokenType::Or => writeln!(output, "OR or null"),
+            TokenType::Print => writeln!(output, "PRINT print null"),
+            TokenType::Return => writeln!(output, "RETURN return null"),
+            TokenType::Super => writeln!(output, "SUPER super null"),
+            TokenType::This => writeln!(output, "THIS this null"),
+            TokenType::True => writeln!(output, "TRUE true null"),
+            TokenType::Var => writeln!(output, "VAR var null"),
+            TokenType::While => writeln!(output, "WHILE while null"),
             // special tokens
-            TokenType::Eof => println!("EOF  null"),
+            TokenType::Eof => writeln!(output, "EOF  null"),
             // literals
             TokenType::Identifier => {
                 if let TokenValue::Identifier(value) = &self.value {
-                    println!("IDENTIFIER {0} null", value);
-                    return;
+                    writeln!(output, "IDENTIFIER {0} null", value)?;
+                    return Ok(());
                 }
                 unreachable!("Expected identifier.  Found {:?}", self.value);
             }
             TokenType::String => {
                 if let TokenValue::String(value) = &self.value {
-                    println!("STRING \"{0}\" {0}", value);
-                    return;
+                    writeln!(output, "STRING \"{0}\" {0}", value)?;
+                    return Ok(());
                 }
                 unreachable!("Expected string.  Found {:?}", self.value);
             }
@@ -130,14 +131,14 @@ impl Token {
                 if let TokenValue::Number(value) = self.value {
                     if let Some(lexeme) = &self.lexeme {
                         if f64::trunc(value) == value {
-                            println!("NUMBER {} {:.1}", lexeme, value);
+                            writeln!(output, "NUMBER {} {:.1}", lexeme, value)?;
                         } else {
-                            println!("NUMBER {} {}", lexeme, value);
+                            writeln!(output, "NUMBER {} {}", lexeme, value)?;
                         }
-                        return;
+                        return Ok(());
                     }
-                    unreachable!("Expected lexeme.  Found {:?}", self.lexeme);
                 }
+                unreachable!("Expected lexeme.  Found {:?}", self.lexeme);
             }
         }
     }
@@ -163,66 +164,113 @@ impl Display for TokenValue {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::*;
 
     #[test]
     fn test_token_new() {
         let token = Token::new(
             TokenType::Number,
-            1,
-            Some("1".to_string()),
-            TokenValue::Number(1.0),
+            4,
+            Some("1.23".to_string()),
+            TokenValue::Number(1.23),
         );
         assert_eq!(token.token_type, TokenType::Number);
-        assert_eq!(token.line, 1);
-        assert_eq!(token.lexeme, Some("1".to_string()));
-        assert_eq!(token.value, TokenValue::Number(1.0));
+        assert_eq!(token.line, 4);
+        assert_eq!(token.lexeme, Some("1.23".to_string()));
+        assert_eq!(token.value, TokenValue::Number(1.23));
     }
 
     #[test]
     fn test_token_from_token_type() {
-        let token = Token::from_token_type(1, TokenType::Number);
-        assert_eq!(token.token_type, TokenType::Number);
-        assert_eq!(token.line, 1);
+        let token = Token::from_token_type(2, TokenType::BangEqual);
+        assert_eq!(token.token_type, TokenType::BangEqual);
+        assert_eq!(token.line, 2);
         assert_eq!(token.lexeme, None);
         assert_eq!(token.value, TokenValue::None);
     }
 
     #[test]
     fn test_token_new_number() {
-        let token = Token::new_number(1, "1".to_string(), 1.0);
+        let token = Token::new_number(2, "1.23".to_string(), 1.23);
         assert_eq!(token.token_type, TokenType::Number);
-        assert_eq!(token.line, 1);
-        assert_eq!(token.lexeme, Some("1".to_string()));
-        assert_eq!(token.value, TokenValue::Number(1.0));
+        assert_eq!(token.line, 2);
+        assert_eq!(token.lexeme, Some("1.23".to_string()));
+        assert_eq!(token.value, TokenValue::Number(1.23));
     }
 
     #[test]
     fn test_token_new_string() {
-        let token = Token::new_string(1, "string".to_string());
+        let token = Token::new_string(2, "test_string".to_string());
         assert_eq!(token.token_type, TokenType::String);
-        assert_eq!(token.line, 1);
+        assert_eq!(token.line, 2);
         assert_eq!(token.lexeme, None);
-        assert_eq!(token.value, TokenValue::String("string".to_string()));
+        assert_eq!(token.value, TokenValue::String("test_string".to_string()));
     }
 
     #[test]
     fn test_token_new_identifier() {
-        let token = Token::new_identifier(1, "identifier".to_string());
+        let token = Token::new_identifier(2, "test_identifier".to_string());
         assert_eq!(token.token_type, TokenType::Identifier);
-        assert_eq!(token.line, 1);
+        assert_eq!(token.line, 2);
         assert_eq!(token.lexeme, None);
         assert_eq!(
             token.value,
-            TokenValue::Identifier("identifier".to_string())
+            TokenValue::Identifier("test_identifier".to_string())
         );
     }
 
     #[test]
     fn test_token_new_eof() {
-        let token = Token::new_eof(1);
+        let token = Token::new_eof(2);
         assert_eq!(token.token_type, TokenType::Eof);
-        assert_eq!(token.line, 1);
+        assert_eq!(token.line, 2);
         assert_eq!(token.lexeme, None);
         assert_eq!(token.value, TokenValue::None);
+    }
+
+    #[rstest]
+    #[case(TokenType::LeftParen, "LEFT_PAREN ( null\n")]
+    #[case(TokenType::RightParen, "RIGHT_PAREN ) null\n")]
+    #[case(TokenType::LeftBrace, "LEFT_BRACE { null\n")]
+    #[case(TokenType::RightBrace, "RIGHT_BRACE } null\n")]
+    #[case(TokenType::Comma, "COMMA , null\n")]
+    #[case(TokenType::Dot, "DOT . null\n")]
+    #[case(TokenType::Semicolon, "SEMICOLON ; null\n")]
+    #[case(TokenType::Minus, "MINUS - null\n")]
+    #[case(TokenType::Plus, "PLUS + null\n")]
+    #[case(TokenType::Star, "STAR * null\n")]
+    #[case(TokenType::Slash, "SLASH / null\n")]
+    #[case(TokenType::Equal, "EQUAL = null\n")]
+    #[case(TokenType::EqualEqual, "EQUAL_EQUAL == null\n")]
+    #[case(TokenType::Bang, "BANG ! null\n")]
+    #[case(TokenType::BangEqual, "BANG_EQUAL != null\n")]
+    #[case(TokenType::Greater, "GREATER > null\n")]
+    #[case(TokenType::GreaterEqual, "GREATER_EQUAL >= null\n")]
+    #[case(TokenType::Less, "LESS < null\n")]
+    #[case(TokenType::LessEqual, "LESS_EQUAL <= null\n")]
+    #[case(TokenType::And, "AND and null\n")]
+    #[case(TokenType::Class, "CLASS class null\n")]
+    #[case(TokenType::Else, "ELSE else null\n")]
+    #[case(TokenType::False, "FALSE false null\n")]
+    #[case(TokenType::For, "FOR for null\n")]
+    #[case(TokenType::Fun, "FUN fun null\n")]
+    #[case(TokenType::If, "IF if null\n")]
+    #[case(TokenType::Nil, "NIL nil null\n")]
+    #[case(TokenType::Or, "OR or null\n")]
+    #[case(TokenType::Print, "PRINT print null\n")]
+    #[case(TokenType::Return, "RETURN return null\n")]
+    #[case(TokenType::Super, "SUPER super null\n")]
+    #[case(TokenType::This, "THIS this null\n")]
+    #[case(TokenType::True, "TRUE true null\n")]
+    #[case(TokenType::Var, "VAR var null\n")]
+    #[case(TokenType::While, "WHILE while null\n")]
+    #[case(TokenType::Eof, "EOF  null\n")]
+    fn test_token_print(#[case] token_type: TokenType, #[case] expected: &str) {
+        let token = Token::from_token_type(2, token_type);
+        let mut output = Vec::new();
+
+        token.print(&mut output).unwrap();
+
+        assert_eq!(String::from_utf8(output).unwrap(), expected);
     }
 }

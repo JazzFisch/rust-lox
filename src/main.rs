@@ -1,9 +1,12 @@
 use anyhow::Result;
+use lexer::Lexer;
+use parser::Parser;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
 use token::Token;
+use visitor::ast_printer::AstPrinter;
 
 mod lexer;
 mod parser;
@@ -88,9 +91,9 @@ fn handle_args() -> Result<InterpreterCommand, InterpreterError> {
 
 fn parse_file(filename: &String) -> Result<(), InterpreterError> {
     let tokens = tokenize_file(filename, false)?;
-    let mut parser = parser::Parser::new(tokens);
+    let mut parser = Parser::new(tokens);
     let expression = parser.parse();
-    let printer = visitor::ast_printer::AstPrinter;
+    let printer = AstPrinter;
 
     match expression {
         Ok(expression) => println!("{}", printer.print(&expression)),
@@ -113,6 +116,6 @@ fn tokenize_file(filename: &String, print_tokens: bool) -> Result<Vec<Token>, In
     }
 
     let file_contents = file_contents.ok().unwrap_or("".into());
-    let mut lexer = lexer::Lexer::new(&file_contents);
+    let mut lexer = Lexer::new(&file_contents);
     lexer.tokenize(print_tokens)
 }

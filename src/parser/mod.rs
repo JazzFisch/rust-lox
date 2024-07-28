@@ -1,8 +1,3 @@
-use expression::Expression;
-use parse_error::ParseError;
-
-use crate::token::{token_type::TokenType, Token};
-
 pub mod ast_visitor;
 pub mod binary_expression;
 pub mod expression;
@@ -10,6 +5,11 @@ pub mod grouping_expression;
 pub mod literal_expression;
 pub mod parse_error;
 pub mod unary_expression;
+
+use expression::Expression;
+use parse_error::ParseError;
+
+use crate::token::{token_type::TokenType, Token};
 
 macro_rules! match_tokens {
     ($self:expr, $($token:expr),* $(,)?) => {{

@@ -117,7 +117,7 @@ impl<'a> Lexer<'a> {
 
         if print_tokens {
             for token in &self.tokens {
-                token.print();
+                token.print(std::io::stdout().by_ref()).unwrap();
             }
         }
 
