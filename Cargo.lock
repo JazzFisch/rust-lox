@@ -15,15 +15,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfb24e866b15a1af2a1b663f10c6b6b8f397a84aadb828f12e5b289ec23a3a3c"
 
 [[package]]
-name = "interpreter-starter-rust"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bytes",
- "thiserror",
-]
-
-[[package]]
 name = "proc-macro2"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -39,6 +30,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa563d17ecb180e500da1cfd2b028310ac758de548efdd203e18f283af693f37"
 dependencies = [
  "proc-macro2",
+]
+
+[[package]]
+name = "rust-lox"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "thiserror",
 ]
 
 [[package]]
