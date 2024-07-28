@@ -8,7 +8,7 @@ pub struct GroupingExpression {
 impl GroupingExpression {
     pub fn new(expression: Expression) -> Self {
         Self {
-            expression : Box::new(expression),
+            expression: Box::new(expression),
         }
     }
 

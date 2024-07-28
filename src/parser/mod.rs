@@ -27,12 +27,16 @@ macro_rules! match_tokens {
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
-    failed: bool
+    failed: bool,
 }
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Parser { tokens, current: 0, failed: false }
+        Parser {
+            tokens,
+            current: 0,
+            failed: false,
+        }
     }
 
     pub fn parse(&mut self) -> Result<Expression, ParseError> {
@@ -63,7 +67,13 @@ impl Parser {
     fn comparison(&mut self) -> Result<Expression, ParseError> {
         let mut expr = self.term()?;
 
-        while match_tokens!(self, TokenType::Greater, TokenType::GreaterEqual, TokenType::Less, TokenType::LessEqual) {
+        while match_tokens!(
+            self,
+            TokenType::Greater,
+            TokenType::GreaterEqual,
+            TokenType::Less,
+            TokenType::LessEqual
+        ) {
             let operator = self.previous().unwrap().clone();
             let right = self.term()?;
             let left = expr;
@@ -73,7 +83,11 @@ impl Parser {
         Ok(expr)
     }
 
-    fn consume(&mut self, token_type: TokenType, message: &str) -> Result<Option<&Token>, ParseError> {
+    fn consume(
+        &mut self,
+        token_type: TokenType,
+        message: &str,
+    ) -> Result<Option<&Token>, ParseError> {
         if self.check(token_type) {
             return Ok(self.advance());
         }
@@ -88,9 +102,12 @@ impl Parser {
     fn error(&mut self, token: &Token, message: &str) -> ParseError {
         if token.token_type == TokenType::Eof {
             self.report(token.line, " at end", message);
-        }
-        else {
-            self.report(token.line, format!(" at '{}'", token.value).as_str(), message);
+        } else {
+            self.report(
+                token.line,
+                format!(" at '{}'", token.value).as_str(),
+                message,
+            );
         }
 
         self.failed = true;
@@ -151,7 +168,7 @@ impl Parser {
 
         if match_tokens!(self, TokenType::LeftParen) {
             let expr = self.expression()?;
-            if let Err(err) =  self.consume(TokenType::RightParen, "Expect ')' after expression.") {
+            if let Err(err) = self.consume(TokenType::RightParen, "Expect ')' after expression.") {
                 self.synchronize();
                 return Err(err);
             }
@@ -179,8 +196,14 @@ impl Parser {
             }
 
             match self.peek().unwrap().token_type {
-                TokenType::Class | TokenType::Fun | TokenType::Var | TokenType::For |
-                TokenType::If | TokenType::While | TokenType::Print | TokenType::Return => return,
+                TokenType::Class
+                | TokenType::Fun
+                | TokenType::Var
+                | TokenType::For
+                | TokenType::If
+                | TokenType::While
+                | TokenType::Print
+                | TokenType::Return => return,
                 _ => {}
             }
 

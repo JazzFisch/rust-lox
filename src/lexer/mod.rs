@@ -1,7 +1,10 @@
-use std::io::{self, Write};
 use anyhow::Result;
+use std::io::{self, Write};
 
-use crate::{token::{token_type::TokenType, Token, TokenValue}, InterpreterError};
+use crate::{
+    token::{token_type::TokenType, Token},
+    InterpreterError,
+};
 
 pub struct Lexer<'a> {
     text: &'a str,
@@ -72,16 +75,15 @@ impl<'a> Lexer<'a> {
                         while self.peek() != Some('\n') && self.peek().is_some() {
                             self.advance();
                         }
-                    }
-                    else {
+                    } else {
                         self.add_token(Token::from_token_type(self.line, TokenType::Slash));
                     }
-                },
+                }
                 // comparison tokens
-                '=' => if self.match_char('=') { self.add_token(Token::from_token_type(self.line, TokenType::EqualEqual)) } else { self.add_token(Token::from_token_type(self.line, TokenType::Equal)) },
-                '!' => if self.match_char('=') { self.add_token(Token::from_token_type(self.line, TokenType::BangEqual)) } else { self.add_token(Token::from_token_type(self.line, TokenType::Bang)) },
-                '<' => if self.match_char('=') { self.add_token(Token::from_token_type(self.line, TokenType::LessEqual)) } else { self.add_token(Token::from_token_type(self.line, TokenType::Less)) },
-                '>' => if self.match_char('=') { self.add_token(Token::from_token_type(self.line, TokenType::GreaterEqual)) } else { self.add_token(Token::from_token_type(self.line, TokenType::Greater)) },
+                '=' => self.add_multichar_token('=', TokenType::EqualEqual, TokenType::Equal),
+                '!' => self.add_multichar_token('=', TokenType::BangEqual, TokenType::Bang),
+                '<' => self.add_multichar_token('=', TokenType::LessEqual, TokenType::Less),
+                '>' => self.add_multichar_token('=', TokenType::GreaterEqual, TokenType::Greater),
                 // identifiers
                 // strings
                 '"' => {
@@ -98,7 +100,9 @@ impl<'a> Lexer<'a> {
                         continue;
                     }
                     // identifiers and keywords
-                    if (unmatched.is_ascii_alphabetic() || unmatched == '_') && self.identifier().is_ok() {
+                    if (unmatched.is_ascii_alphabetic() || unmatched == '_')
+                        && self.identifier().is_ok()
+                    {
                         continue;
                     }
 
@@ -109,7 +113,7 @@ impl<'a> Lexer<'a> {
         }
 
         io::stderr().flush().unwrap();
-        self.add_token(Token::new(TokenType::Eof, self.line, None, TokenValue::None));
+        self.add_token(Token::new_eof(self.line));
 
         if print_tokens {
             for token in &self.tokens {
@@ -122,6 +126,14 @@ impl<'a> Lexer<'a> {
         }
 
         Ok(self.tokens.clone())
+    }
+
+    fn add_multichar_token(&mut self, chr: char, double: TokenType, single: TokenType) {
+        if self.match_char(chr) {
+            self.add_token(Token::from_token_type(self.line, double))
+        } else {
+            self.add_token(Token::from_token_type(self.line, single))
+        }
     }
 
     fn add_token(&mut self, token: Token) {
@@ -144,20 +156,26 @@ impl<'a> Lexer<'a> {
     }
 
     fn get_lexeme(&self, start: usize, end: usize) -> String {
-        self.text.chars().skip(start).take(end - start + 1).collect()
+        self.text
+            .chars()
+            .skip(start)
+            .take(end - start + 1)
+            .collect()
     }
 
     fn identifier(&mut self) -> Result<(), InterpreterError> {
         let start = self.pos();
-        while self.peek().map_or(false, |chr| chr.is_ascii_alphanumeric() || chr == '_') {
+        while self
+            .peek()
+            .map_or(false, |chr| chr.is_ascii_alphanumeric() || chr == '_')
+        {
             self.advance();
         }
 
         let lexeme = self.get_lexeme(start, self.pos());
         if let Some(keyword) = self.keywords.get(lexeme.as_str()) {
             self.add_token(Token::from_token_type(self.line, *keyword));
-        }
-        else {
+        } else {
             self.add_token(Token::new_identifier(self.line, lexeme));
         }
 

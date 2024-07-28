@@ -35,8 +35,22 @@ pub enum TokenType {
     Number,
 
     // keywords
-    And, Class, Else, False, Fun, For, If, Nil, Or,
-    Print, Return, Super, This, True, Var, While,
+    And,
+    Class,
+    Else,
+    False,
+    Fun,
+    For,
+    If,
+    Nil,
+    Or,
+    Print,
+    Return,
+    Super,
+    This,
+    True,
+    Var,
+    While,
 
     // special tokens
     Eof,
@@ -59,7 +73,7 @@ impl Display for TokenType {
         match self {
             TokenType::LeftParen => write!(f, "("),
             TokenType::RightParen => write!(f, ")"),
-            TokenType::LeftBrace =>  write!(f, "{{"),
+            TokenType::LeftBrace => write!(f, "{{"),
             TokenType::RightBrace => write!(f, "}}"),
             TokenType::Comma => write!(f, ","),
             TokenType::Dot => write!(f, "."),

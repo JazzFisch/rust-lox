@@ -12,7 +12,7 @@ impl UnaryExpression {
     pub fn new(operator: Token, right: Expression) -> Self {
         UnaryExpression {
             operator,
-            right : Box::new(right),
+            right: Box::new(right),
         }
     }
 

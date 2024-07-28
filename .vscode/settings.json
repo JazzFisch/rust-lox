@@ -1,5 +1,7 @@
 {
     "files.exclude": {
         "**/target": true
-    }
+    },
+    "rust-analyzer.testExplorer": true,
+    "editor.formatOnSave": true
 }

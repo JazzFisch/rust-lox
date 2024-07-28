@@ -1,8 +1,8 @@
+use anyhow::Result;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
-use anyhow::Result;
 use token::Token;
 
 mod lexer;

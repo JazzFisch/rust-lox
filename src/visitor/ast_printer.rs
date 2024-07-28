@@ -1,10 +1,7 @@
 use crate::parser::{
-    ast_visitor::AstVisitor,
-    binary_expression::BinaryExpression,
-    expression::Expression,
-    grouping_expression::GroupingExpression,
-    literal_expression::LiteralExpression,
-    unary_expression::UnaryExpression
+    ast_visitor::AstVisitor, binary_expression::BinaryExpression, expression::Expression,
+    grouping_expression::GroupingExpression, literal_expression::LiteralExpression,
+    unary_expression::UnaryExpression,
 };
 
 pub struct AstPrinter;

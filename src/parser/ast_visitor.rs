@@ -1,8 +1,6 @@
 use super::{
-    binary_expression::BinaryExpression,
-    grouping_expression::GroupingExpression,
-    literal_expression::LiteralExpression,
-    unary_expression::UnaryExpression
+    binary_expression::BinaryExpression, grouping_expression::GroupingExpression,
+    literal_expression::LiteralExpression, unary_expression::UnaryExpression,
 };
 
 pub trait AstVisitor<T> {

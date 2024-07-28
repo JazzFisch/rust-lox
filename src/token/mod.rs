@@ -10,7 +10,7 @@ pub enum TokenValue {
     None,
     Number(f64),
     String(String),
-    Identifier(String)
+    Identifier(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -18,16 +18,21 @@ pub struct Token {
     pub token_type: TokenType,
     pub line: usize,
     pub lexeme: Option<String>,
-    pub value: TokenValue
+    pub value: TokenValue,
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, line: usize, lexeme: Option<String>, value: TokenValue) -> Self {
+    pub fn new(
+        token_type: TokenType,
+        line: usize,
+        lexeme: Option<String>,
+        value: TokenValue,
+    ) -> Self {
         Self {
             token_type,
             line,
             lexeme,
-            value
+            value,
         }
     }
 
@@ -36,7 +41,12 @@ impl Token {
     }
 
     pub fn new_number(line: usize, lexeme: String, value: f64) -> Self {
-        Self::new(TokenType::Number, line, Some(lexeme), TokenValue::Number(value))
+        Self::new(
+            TokenType::Number,
+            line,
+            Some(lexeme),
+            TokenValue::Number(value),
+        )
     }
 
     pub fn new_string(line: usize, value: String) -> Self {
@@ -44,7 +54,12 @@ impl Token {
     }
 
     pub fn new_identifier(line: usize, value: String) -> Self {
-        Self::new(TokenType::Identifier, line, None, TokenValue::Identifier(value))
+        Self::new(
+            TokenType::Identifier,
+            line,
+            None,
+            TokenValue::Identifier(value),
+        )
     }
 
     pub fn new_eof(line: usize) -> Self {
@@ -102,22 +117,21 @@ impl Token {
                     return;
                 }
                 unreachable!("Expected identifier.  Found {:?}", self.value);
-            },
+            }
             TokenType::String => {
                 if let TokenValue::String(value) = &self.value {
                     println!("STRING \"{0}\" {0}", value);
                     return;
                 }
                 unreachable!("Expected string.  Found {:?}", self.value);
-            },
+            }
             TokenType::Number => {
                 // this is a hack to get the output to match the book
                 if let TokenValue::Number(value) = self.value {
                     if let Some(lexeme) = &self.lexeme {
                         if f64::trunc(value) == value {
                             println!("NUMBER {} {:.1}", lexeme, value);
-                        }
-                        else {
+                        } else {
                             println!("NUMBER {} {}", lexeme, value);
                         }
                         return;
@@ -136,17 +150,15 @@ impl Display for TokenValue {
             TokenValue::Number(value) => {
                 if f64::trunc(*value) == *value {
                     write!(f, "{:.1}", value)
-                }
-                else {
+                } else {
                     write!(f, "{}", value)
                 }
-            },
+            }
             TokenValue::String(value) => write!(f, "{}", value),
             TokenValue::Identifier(value) => write!(f, "{}", value),
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -154,7 +166,12 @@ mod tests {
 
     #[test]
     fn test_token_new() {
-        let token = Token::new(TokenType::Number, 1, Some("1".to_string()), TokenValue::Number(1.0));
+        let token = Token::new(
+            TokenType::Number,
+            1,
+            Some("1".to_string()),
+            TokenValue::Number(1.0),
+        );
         assert_eq!(token.token_type, TokenType::Number);
         assert_eq!(token.line, 1);
         assert_eq!(token.lexeme, Some("1".to_string()));
@@ -194,7 +211,10 @@ mod tests {
         assert_eq!(token.token_type, TokenType::Identifier);
         assert_eq!(token.line, 1);
         assert_eq!(token.lexeme, None);
-        assert_eq!(token.value, TokenValue::Identifier("identifier".to_string()));
+        assert_eq!(
+            token.value,
+            TokenValue::Identifier("identifier".to_string())
+        );
     }
 
     #[test]

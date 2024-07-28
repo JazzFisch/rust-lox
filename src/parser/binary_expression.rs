@@ -12,9 +12,9 @@ pub struct BinaryExpression {
 impl BinaryExpression {
     pub fn new(left: Expression, operator: Token, right: Expression) -> Self {
         Self {
-            left : Box::new(left),
+            left: Box::new(left),
             operator,
-            right : Box::new(right),
+            right: Box::new(right),
         }
     }
 

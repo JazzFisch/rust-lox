@@ -3,11 +3,9 @@ use std::fmt::Display;
 use crate::token::Token;
 
 use super::{
-    ast_visitor::AstVisitor,
-    binary_expression::BinaryExpression,
-    grouping_expression::GroupingExpression,
-    literal_expression::LiteralExpression,
-    unary_expression::UnaryExpression
+    ast_visitor::AstVisitor, binary_expression::BinaryExpression,
+    grouping_expression::GroupingExpression, literal_expression::LiteralExpression,
+    unary_expression::UnaryExpression,
 };
 
 #[derive(Debug, PartialEq)]
@@ -66,11 +64,10 @@ impl Display for Value {
             Value::Number(num) => {
                 if f64::trunc(*num) == *num {
                     write!(f, "{:.1}", num)
-                }
-                else {
+                } else {
                     write!(f, "{}", num)
                 }
-            },
+            }
             Value::Boolean(bool) => write!(f, "{}", bool),
             Value::Nil => write!(f, "nil"),
         }
