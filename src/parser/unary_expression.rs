@@ -2,6 +2,7 @@ use crate::token::Token;
 
 use super::expression::Expression;
 
+#[derive(Debug, PartialEq)]
 pub struct UnaryExpression {
     operator: Token,
     right: Box<Expression>,

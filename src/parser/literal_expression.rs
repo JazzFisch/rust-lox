@@ -2,6 +2,7 @@ use crate::token::{token_type::TokenType, Token, TokenValue};
 
 use super::expression::Value;
 
+#[derive(Debug, PartialEq)]
 pub struct LiteralExpression {
     value: Value,
 }

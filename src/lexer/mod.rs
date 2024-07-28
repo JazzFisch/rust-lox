@@ -22,7 +22,7 @@ fn is_digit(chr: Option<char>) -> bool {
 impl<'a> Lexer<'a> {
     pub fn new(text: &'a str) -> Self {
         Self {
-            text: text,
+            text,
             line: 1,
             pos: None,
             iter: text.chars().peekable(),
@@ -69,7 +69,7 @@ impl<'a> Lexer<'a> {
                 '*' => self.add_token(Token::from_token_type(self.line, TokenType::Star)),
                 '/' => {
                     if self.peek() == Some('/') {
-                        while self.peek() != Some('\n') && self.peek() != None {
+                        while self.peek() != Some('\n') && self.peek().is_some() {
                             self.advance();
                         }
                     }
@@ -94,16 +94,12 @@ impl<'a> Lexer<'a> {
                         continue;
                     }
                     // numbers
-                    if unmatched.is_ascii_digit() {
-                        if let Ok(_) = self.number() {
-                            continue;
-                        }
+                    if unmatched.is_ascii_digit() && self.number().is_ok() {
+                        continue;
                     }
                     // identifiers and keywords
-                    if unmatched.is_ascii_alphabetic() || unmatched == '_' {
-                        if let Ok(_) = self.identifier() {
-                            continue;
-                        }
+                    if (unmatched.is_ascii_alphabetic() || unmatched == '_') && self.identifier().is_ok() {
+                        continue;
                     }
 
                     self.report(self.line, &format!("Unexpected character: {}", unmatched));
@@ -133,12 +129,9 @@ impl<'a> Lexer<'a> {
     }
 
     fn advance(&mut self) -> Option<char> {
-        let chr = self.iter.next();
-        if chr.is_none() {
-            return None;
-        }
+        let chr = self.iter.next()?;
 
-        if chr.unwrap() == '\n' {
+        if chr == '\n' {
             self.line += 1;
         }
 
@@ -147,7 +140,7 @@ impl<'a> Lexer<'a> {
             None => self.pos = Some(0),
         }
 
-        chr
+        Some(chr)
     }
 
     fn get_lexeme(&self, start: usize, end: usize) -> String {
@@ -204,10 +197,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn peek(&mut self) -> Option<char> {
-        match self.iter.peek() {
-            Some(chr) => Some(*chr),
-            None => None,
-        }
+        self.iter.peek().copied()
     }
 
     fn peek_to(&mut self, n: usize) -> Option<char> {
@@ -219,19 +209,19 @@ impl<'a> Lexer<'a> {
     }
 
     fn report(&self, line: usize, message: &str) {
-        writeln!(io::stderr(), "[line {}] Error: {}", line, message).unwrap();
+        eprintln!("[line {}] Error: {}", line, message);
     }
 
     fn string(&mut self) -> bool {
         let start = self.pos();
-        while self.peek() != Some('"') && self.peek() != None {
+        while self.peek() != Some('"') && self.peek().is_some() {
             if self.peek() == Some('\n') {
                 self.line += 1;
             }
             self.advance();
         }
 
-        if self.peek() == None {
+        if self.peek().is_none() {
             self.report(self.line, "Unterminated string.");
             return false;
         }

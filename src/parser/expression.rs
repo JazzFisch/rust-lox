@@ -10,6 +10,7 @@ use super::{
     unary_expression::UnaryExpression
 };
 
+#[derive(Debug, PartialEq)]
 pub enum Value {
     Number(f64),
     String(String),
@@ -17,6 +18,7 @@ pub enum Value {
     Nil,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Expression {
     Binary(Box<BinaryExpression>),
     Grouping(Box<GroupingExpression>),

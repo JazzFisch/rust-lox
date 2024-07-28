@@ -4,7 +4,7 @@ use token_type::TokenType;
 
 pub mod token_type;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub enum TokenValue {
     #[default]
     None,
@@ -13,7 +13,7 @@ pub enum TokenValue {
     Identifier(String)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub token_type: TokenType,
     pub line: usize,
@@ -144,5 +144,65 @@ impl Display for TokenValue {
             TokenValue::String(value) => write!(f, "{}", value),
             TokenValue::Identifier(value) => write!(f, "{}", value),
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_token_new() {
+        let token = Token::new(TokenType::Number, 1, Some("1".to_string()), TokenValue::Number(1.0));
+        assert_eq!(token.token_type, TokenType::Number);
+        assert_eq!(token.line, 1);
+        assert_eq!(token.lexeme, Some("1".to_string()));
+        assert_eq!(token.value, TokenValue::Number(1.0));
+    }
+
+    #[test]
+    fn test_token_from_token_type() {
+        let token = Token::from_token_type(1, TokenType::Number);
+        assert_eq!(token.token_type, TokenType::Number);
+        assert_eq!(token.line, 1);
+        assert_eq!(token.lexeme, None);
+        assert_eq!(token.value, TokenValue::None);
+    }
+
+    #[test]
+    fn test_token_new_number() {
+        let token = Token::new_number(1, "1".to_string(), 1.0);
+        assert_eq!(token.token_type, TokenType::Number);
+        assert_eq!(token.line, 1);
+        assert_eq!(token.lexeme, Some("1".to_string()));
+        assert_eq!(token.value, TokenValue::Number(1.0));
+    }
+
+    #[test]
+    fn test_token_new_string() {
+        let token = Token::new_string(1, "string".to_string());
+        assert_eq!(token.token_type, TokenType::String);
+        assert_eq!(token.line, 1);
+        assert_eq!(token.lexeme, None);
+        assert_eq!(token.value, TokenValue::String("string".to_string()));
+    }
+
+    #[test]
+    fn test_token_new_identifier() {
+        let token = Token::new_identifier(1, "identifier".to_string());
+        assert_eq!(token.token_type, TokenType::Identifier);
+        assert_eq!(token.line, 1);
+        assert_eq!(token.lexeme, None);
+        assert_eq!(token.value, TokenValue::Identifier("identifier".to_string()));
+    }
+
+    #[test]
+    fn test_token_new_eof() {
+        let token = Token::new_eof(1);
+        assert_eq!(token.token_type, TokenType::Eof);
+        assert_eq!(token.line, 1);
+        assert_eq!(token.lexeme, None);
+        assert_eq!(token.value, TokenValue::None);
     }
 }

@@ -1,5 +1,3 @@
-use std::io::{self, Write};
-
 use expression::Expression;
 use parse_error::ParseError;
 
@@ -147,7 +145,7 @@ impl Parser {
         // special case for number and string literals
         if match_tokens!(self, TokenType::Number, TokenType::String) {
             let token = self.previous().unwrap();
-            let expr = Expression::new_literal(&token);
+            let expr = Expression::new_literal(token);
             return Ok(expr);
         }
 
@@ -169,7 +167,7 @@ impl Parser {
     }
 
     fn report(&self, line: usize, location: &str, message: &str) {
-        writeln!(io::stderr(), "[line {line}] Error{location}: {message}").unwrap();
+        eprintln!("[line {line}] Error{location}: {message}");
     }
 
     fn synchronize(&mut self) {
