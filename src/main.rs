@@ -113,7 +113,7 @@ fn parse_file(filename: &String, print_tree: bool) -> Result<Vec<Statement>, Int
     let statements = parser.parse()?;
 
     if print_tree {
-        let printer = ExpressionPrinter;
+        let mut printer = ExpressionPrinter;
         for statement in &statements {
             if let Statement::Expression(expr) = statement {
                 printer.print(expr);

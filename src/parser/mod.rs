@@ -1,3 +1,4 @@
+pub mod assignment_expression;
 pub mod binary_expression;
 pub mod expression;
 pub mod expression_value;
@@ -12,7 +13,7 @@ use expression::Expression;
 use parse_error::ParseError;
 use statement::Statement;
 
-use crate::token::{token_type::TokenType, Token};
+use crate::token::{token_type::TokenType, token_value::TokenValue, Token};
 
 macro_rules! match_tokens {
     ($self:expr, $($token:expr),* $(,)?) => {{
@@ -60,6 +61,23 @@ impl Parser {
         }
 
         None
+    }
+
+    fn assignment(&mut self) -> Result<Expression, ParseError> {
+        let expr = self.equality()?;
+
+        if match_tokens!(self, TokenType::Equal) {
+            let equals = self.previous().unwrap().clone();
+            let value = self.assignment()?;
+
+            if let Expression::Variable(var) = expr {
+                return Ok(Expression::new_assignment(var.name().clone(), value));
+            }
+
+            return Err(self.error(&equals, "Invalid assignment target."));
+        }
+
+        Ok(expr)
     }
 
     fn check(&self, token_type: TokenType) -> bool {
@@ -114,14 +132,18 @@ impl Parser {
     }
 
     fn error(&mut self, token: &Token, message: &str) -> ParseError {
-        if token.token_type == TokenType::Eof {
-            self.report(token.line, " at end", message);
-        } else {
-            self.report(
+        match (&token.token_type, &token.value) {
+            (TokenType::Eof, _) => self.report(token.line, " at end", message),
+            (_, TokenValue::None) => self.report(
+                token.line,
+                format!(" at '{}'", token.token_type).as_str(),
+                message,
+            ),
+            _ => self.report(
                 token.line,
                 format!(" at '{}'", token.value).as_str(),
                 message,
-            );
+            ),
         }
 
         self.failed = true;
@@ -142,7 +164,7 @@ impl Parser {
     }
 
     fn expression(&mut self) -> Result<Expression, ParseError> {
-        self.equality()
+        self.assignment()
     }
 
     fn expression_statement(&mut self) -> Result<Statement, ParseError> {

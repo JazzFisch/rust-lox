@@ -6,10 +6,11 @@ use interpreter_error::InterpreterError;
 
 use crate::{
     parser::{
-        binary_expression::BinaryExpression, expression::Expression,
-        expression_value::ExpressionValue, grouping_expression::GroupingExpression,
-        literal_expression::LiteralExpression, statement::Statement,
-        unary_expression::UnaryExpression, variable_expression::VariableExpression,
+        assignment_expression::AssignmentExpression, binary_expression::BinaryExpression,
+        expression::Expression, expression_value::ExpressionValue,
+        grouping_expression::GroupingExpression, literal_expression::LiteralExpression,
+        statement::Statement, unary_expression::UnaryExpression,
+        variable_expression::VariableExpression,
     },
     token::{token_type::TokenType, token_value::TokenValue, Token},
     visitor::{expression_visitor::ExpressionVisitor, statement_visitor::StatementVisitor},
@@ -82,7 +83,7 @@ impl Interpreter {
         Ok(())
     }
 
-    fn evaluate(&self, expr: &Expression) -> Result<ExpressionValue, InterpreterError> {
+    fn evaluate(&mut self, expr: &Expression) -> Result<ExpressionValue, InterpreterError> {
         let expr = expr.accept(self)?;
         Ok(expr)
     }
@@ -93,7 +94,19 @@ impl Interpreter {
 }
 
 impl ExpressionVisitor<ExpressionValue, InterpreterError> for Interpreter {
-    fn visit_binary(&self, expr: &BinaryExpression) -> Result<ExpressionValue, InterpreterError> {
+    fn visit_assignment(
+        &mut self,
+        assignment: &AssignmentExpression,
+    ) -> Result<ExpressionValue, InterpreterError> {
+        let value = self.evaluate(assignment.expression())?;
+        self.environment.assign(assignment.name(), value.clone())?;
+        Ok(value)
+    }
+
+    fn visit_binary(
+        &mut self,
+        expr: &BinaryExpression,
+    ) -> Result<ExpressionValue, InterpreterError> {
         let left = self.evaluate(expr.left())?;
         let operator = expr.operator();
         let right = self.evaluate(expr.right())?;
@@ -150,18 +163,21 @@ impl ExpressionVisitor<ExpressionValue, InterpreterError> for Interpreter {
     }
 
     fn visit_grouping(
-        &self,
+        &mut self,
         expr: &GroupingExpression,
     ) -> Result<ExpressionValue, InterpreterError> {
         let value = self.evaluate(expr.expression())?;
         Ok(value)
     }
 
-    fn visit_literal(&self, expr: &LiteralExpression) -> Result<ExpressionValue, InterpreterError> {
+    fn visit_literal(
+        &mut self,
+        expr: &LiteralExpression,
+    ) -> Result<ExpressionValue, InterpreterError> {
         Ok(expr.value().clone())
     }
 
-    fn visit_unary(&self, expr: &UnaryExpression) -> Result<ExpressionValue, InterpreterError> {
+    fn visit_unary(&mut self, expr: &UnaryExpression) -> Result<ExpressionValue, InterpreterError> {
         let operator = expr.operator();
         let right = self.evaluate(expr.right())?;
 
@@ -184,7 +200,7 @@ impl ExpressionVisitor<ExpressionValue, InterpreterError> for Interpreter {
     }
 
     fn visit_variable(
-        &self,
+        &mut self,
         var: &VariableExpression,
     ) -> Result<ExpressionValue, InterpreterError> {
         if let TokenValue::Identifier(name) = &var.name().value {
@@ -196,12 +212,12 @@ impl ExpressionVisitor<ExpressionValue, InterpreterError> for Interpreter {
 }
 
 impl StatementVisitor for Interpreter {
-    fn visit_expression_statement(&self, expr: &Expression) -> Result<(), InterpreterError> {
+    fn visit_expression_statement(&mut self, expr: &Expression) -> Result<(), InterpreterError> {
         let _ = self.evaluate(expr)?;
         Ok(())
     }
 
-    fn visit_print_statement(&self, expr: &Expression) -> Result<(), InterpreterError> {
+    fn visit_print_statement(&mut self, expr: &Expression) -> Result<(), InterpreterError> {
         let value = self.evaluate(expr)?;
         println!("{}", value);
         Ok(())

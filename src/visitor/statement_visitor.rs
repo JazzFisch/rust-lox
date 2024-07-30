@@ -3,8 +3,8 @@ use crate::{
 };
 
 pub trait StatementVisitor {
-    fn visit_expression_statement(&self, expr: &Expression) -> Result<(), InterpreterError>;
-    fn visit_print_statement(&self, print: &Expression) -> Result<(), InterpreterError>;
+    fn visit_expression_statement(&mut self, expr: &Expression) -> Result<(), InterpreterError>;
+    fn visit_print_statement(&mut self, print: &Expression) -> Result<(), InterpreterError>;
     fn visit_variable_statement(
         &mut self,
         name: &Token,

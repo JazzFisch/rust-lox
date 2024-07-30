@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::parser::expression_value::ExpressionValue;
+use crate::{
+    parser::expression_value::ExpressionValue,
+    token::{token_value::TokenValue, Token},
+};
 
 use super::interpreter_error::InterpreterError;
 
@@ -13,6 +16,20 @@ impl Environment {
         Environment {
             values: HashMap::new(),
         }
+    }
+
+    pub fn assign(&mut self, name: &Token, value: ExpressionValue) -> Result<(), InterpreterError> {
+        if let TokenValue::Identifier(name) = &name.value {
+            if self.values.contains_key(name) {
+                self.values.insert(name.clone(), value);
+                return Ok(());
+            }
+        }
+
+        Err(InterpreterError::RuntimeError(format!(
+            "Undefined variable '{}'.",
+            name.value
+        )))
     }
 
     pub fn define(&mut self, name: String, value: ExpressionValue) {

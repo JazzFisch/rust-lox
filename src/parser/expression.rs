@@ -3,13 +3,15 @@ use std::fmt::Display;
 use crate::{token::Token, visitor::expression_visitor::ExpressionVisitor};
 
 use super::{
-    binary_expression::BinaryExpression, expression_value::ExpressionValue,
-    grouping_expression::GroupingExpression, literal_expression::LiteralExpression,
-    unary_expression::UnaryExpression, variable_expression::VariableExpression,
+    assignment_expression::AssignmentExpression, binary_expression::BinaryExpression,
+    expression_value::ExpressionValue, grouping_expression::GroupingExpression,
+    literal_expression::LiteralExpression, unary_expression::UnaryExpression,
+    variable_expression::VariableExpression,
 };
 
 #[derive(Debug, PartialEq)]
 pub enum Expression {
+    Assignment(Box<AssignmentExpression>),
     Binary(Box<BinaryExpression>),
     Grouping(Box<GroupingExpression>),
     Literal(Box<LiteralExpression>),
@@ -18,6 +20,11 @@ pub enum Expression {
 }
 
 impl Expression {
+    pub fn new_assignment(name: Token, expression: Expression) -> Self {
+        let expr = AssignmentExpression::new(name, expression);
+        Expression::Assignment(Box::new(expr))
+    }
+
     pub fn new_binary(left: Expression, operand: Token, right: Expression) -> Self {
         let expr = BinaryExpression::new(left, operand, right);
         Expression::Binary(Box::new(expr))
@@ -45,8 +52,9 @@ impl Expression {
 }
 
 impl Expression {
-    pub fn accept<T, E>(&self, visitor: &dyn ExpressionVisitor<T, E>) -> Result<T, E> {
+    pub fn accept<T, E>(&self, visitor: &mut dyn ExpressionVisitor<T, E>) -> Result<T, E> {
         match self {
+            Expression::Assignment(expr) => visitor.visit_assignment(expr),
             Expression::Binary(expr) => visitor.visit_binary(expr),
             Expression::Grouping(expr) => visitor.visit_grouping(expr),
             Expression::Literal(expr) => visitor.visit_literal(expr),
