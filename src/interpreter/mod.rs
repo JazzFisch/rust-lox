@@ -1,5 +1,7 @@
+pub mod environment;
 pub mod interpreter_error;
 
+use environment::Environment;
 use interpreter_error::InterpreterError;
 
 use crate::{
@@ -7,13 +9,15 @@ use crate::{
         binary_expression::BinaryExpression, expression::Expression,
         expression_value::ExpressionValue, grouping_expression::GroupingExpression,
         literal_expression::LiteralExpression, statement::Statement,
-        unary_expression::UnaryExpression,
+        unary_expression::UnaryExpression, variable_expression::VariableExpression,
     },
-    token::token_type::TokenType,
+    token::{token_type::TokenType, token_value::TokenValue, Token},
     visitor::{expression_visitor::ExpressionVisitor, statement_visitor::StatementVisitor},
 };
 
-pub struct Interpreter;
+pub struct Interpreter {
+    environment: Environment,
+}
 
 fn is_truthy(value: &ExpressionValue) -> bool {
     match value {
@@ -65,7 +69,13 @@ fn check_number_operands<'a>(
 }
 
 impl Interpreter {
-    pub fn interpret(&self, statements: &Vec<Statement>) -> Result<(), InterpreterError> {
+    pub fn new() -> Self {
+        Interpreter {
+            environment: Environment::new(),
+        }
+    }
+
+    pub fn interpret(&mut self, statements: &Vec<Statement>) -> Result<(), InterpreterError> {
         for stmt in statements {
             self.execute(stmt)?;
         }
@@ -77,7 +87,7 @@ impl Interpreter {
         Ok(expr)
     }
 
-    fn execute(&self, stmt: &Statement) -> Result<(), InterpreterError> {
+    fn execute(&mut self, stmt: &Statement) -> Result<(), InterpreterError> {
         stmt.accept(self)
     }
 }
@@ -172,6 +182,17 @@ impl ExpressionVisitor<ExpressionValue, InterpreterError> for Interpreter {
             // ),
         }
     }
+
+    fn visit_variable(
+        &self,
+        var: &VariableExpression,
+    ) -> Result<ExpressionValue, InterpreterError> {
+        if let TokenValue::Identifier(name) = &var.name().value {
+            let value = self.environment.get(name)?;
+            return Ok(value.clone());
+        }
+        unreachable!("Variable expression must have a string name");
+    }
 }
 
 impl StatementVisitor for Interpreter {
@@ -183,6 +204,24 @@ impl StatementVisitor for Interpreter {
     fn visit_print_statement(&self, expr: &Expression) -> Result<(), InterpreterError> {
         let value = self.evaluate(expr)?;
         println!("{}", value);
+        Ok(())
+    }
+
+    fn visit_variable_statement(
+        &mut self,
+        name: &Token,
+        initializer: &Option<Expression>,
+    ) -> Result<(), InterpreterError> {
+        let mut value = ExpressionValue::Nil;
+        if initializer.is_some() {
+            value = self.evaluate(initializer.as_ref().unwrap())?;
+        }
+
+        if let TokenValue::Identifier(name) = &name.value {
+            let name = name.clone();
+            self.environment.define(name, value);
+        }
+
         Ok(())
     }
 }

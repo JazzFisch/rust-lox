@@ -37,4 +37,12 @@ impl ExpressionVisitor<String, String> for ExpressionPrinter {
         let right = unary.right().accept(self)?;
         Ok(format!("({} {})", operator.token_type, right))
     }
+
+    fn visit_variable(
+        &self,
+        variable: &crate::parser::variable_expression::VariableExpression,
+    ) -> Result<String, String> {
+        let name = variable.name();
+        Ok(format!("{}", name.value))
+    }
 }

@@ -6,6 +6,7 @@ pub mod literal_expression;
 pub mod parse_error;
 pub mod statement;
 pub mod unary_expression;
+pub mod variable_expression;
 
 use expression::Expression;
 use parse_error::ParseError;
@@ -45,7 +46,7 @@ impl Parser {
         let mut statements: Vec<Statement> = Vec::new();
 
         while !self.is_at_end() {
-            let stmt = self.statement()?;
+            let stmt = self.declaration()?;
             statements.push(stmt);
         }
 
@@ -102,6 +103,14 @@ impl Parser {
             None => Token::new_eof(0),
         };
         Err(self.error(&token, message))
+    }
+
+    fn declaration(&mut self) -> Result<Statement, ParseError> {
+        if match_tokens!(self, TokenType::Var) {
+            self.variable_declaration()
+        } else {
+            self.statement()
+        }
     }
 
     fn error(&mut self, token: &Token, message: &str) -> ParseError {
@@ -185,6 +194,12 @@ impl Parser {
         if match_tokens!(self, TokenType::Number, TokenType::String) {
             let token = self.previous().unwrap();
             let expr = Expression::new_literal(token);
+            return Ok(expr);
+        }
+
+        if match_tokens!(self, TokenType::Identifier) {
+            let token = self.previous().unwrap().clone();
+            let expr = Expression::new_variable(token);
             return Ok(expr);
         }
 
@@ -272,5 +287,21 @@ impl Parser {
         }
 
         self.primary()
+    }
+
+    fn variable_declaration(&mut self) -> Result<Statement, ParseError> {
+        let name = self.consume(TokenType::Identifier, "Expect variable name.")?;
+        let name = name.unwrap().clone();
+
+        let mut expr = None;
+        if match_tokens!(self, TokenType::Equal) {
+            expr = Some(self.expression()?);
+        }
+
+        if let Err(err) = self.consume(TokenType::Semicolon, "Expect ';' after expression.") {
+            Err(err)
+        } else {
+            Ok(Statement::Variable(name, expr))
+        }
     }
 }

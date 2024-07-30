@@ -101,7 +101,7 @@ fn handle_args() -> Result<InterpreterCommand, InterpreterError> {
 
 fn interpret_file(filename: &String) -> Result<(), InterpreterError> {
     let statements = parse_file(filename, false)?;
-    let interpreter = interpreter::Interpreter;
+    let mut interpreter = interpreter::Interpreter::new();
     interpreter.interpret(&statements)?;
 
     Ok(())
