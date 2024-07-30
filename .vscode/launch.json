@@ -7,15 +7,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'interpreter-starter-rust'",
+            "name": "Debug executable 'rust-lox'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=interpreter-starter-rust",
-                    "--package=interpreter-starter-rust"
+                    "--bin=rust-lox",
+                    "--package=rust-lox"
                 ],
                 "filter": {
-                    "name": "interpreter-starter-rust",
+                    "name": "rust-lox",
                     "kind": "bin"
                 }
             },
@@ -25,16 +25,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'interpreter-starter-rust'",
+            "name": "Debug unit tests in executable 'rust-lox'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=interpreter-starter-rust",
-                    "--package=interpreter-starter-rust"
+                    "--bin=rust-lox",
+                    "--package=rust-lox"
                 ],
                 "filter": {
-                    "name": "interpreter-starter-rust",
+                    "name": "rust-lox",
                     "kind": "bin"
                 }
             },

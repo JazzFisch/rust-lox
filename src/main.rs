@@ -1,13 +1,15 @@
 use anyhow::Result;
 use lexer::Lexer;
+use parser::statement::Statement;
 use parser::Parser;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
 use token::Token;
-use visitor::ast_printer::AstPrinter;
+use visitor::expression_printer::ExpressionPrinter;
 
+mod interpreter;
 mod lexer;
 mod parser;
 mod token;
@@ -24,8 +26,11 @@ pub enum InterpreterError {
     #[error("Lexical failure")]
     LexicalFailure,
 
-    #[error("Parser failure")]
-    ParserFailure,
+    #[error("Parser failure: {0}")]
+    ParserFailure(#[from] crate::parser::parse_error::ParseError),
+
+    #[error("Interpreter failure: {0}")]
+    InterpreterFailure(#[from] crate::interpreter::interpreter_error::InterpreterError),
 
     #[error("Failed to read file {0}")]
     InvalidFile(String),
@@ -34,6 +39,7 @@ pub enum InterpreterError {
 enum InterpreterCommand {
     Tokenize(String),
     Parse(String),
+    Interpret(String),
 }
 
 fn main() -> Result<()> {
@@ -46,14 +52,16 @@ fn main() -> Result<()> {
 
     let error = match command.ok().unwrap() {
         InterpreterCommand::Tokenize(filename) => tokenize_file(&filename, true).err(),
-        InterpreterCommand::Parse(filename) => parse_file(&filename).err(),
+        InterpreterCommand::Parse(filename) => parse_file(&filename, true).err(),
+        InterpreterCommand::Interpret(filename) => interpret_file(&filename).err(),
     };
 
     if error.is_some() {
         let error = error.unwrap();
         let exit_code = match error {
             InterpreterError::InvalidCommand(_, _) | InterpreterError::InvalidFile(_) => 64,
-            InterpreterError::LexicalFailure | InterpreterError::ParserFailure => 65,
+            InterpreterError::LexicalFailure | InterpreterError::ParserFailure(_) => 65,
+            InterpreterError::InterpreterFailure(_) => 70,
             _ => 1,
         };
 
@@ -71,6 +79,7 @@ fn handle_args() -> Result<InterpreterCommand, InterpreterError> {
 
     //let args: Vec<String> = vec!["".into(), "tokenize".into(), "test.lox".into()];
     //let args: Vec<String> = vec!["".into(), "parse".into(), "test.lox".into()];
+    //let args: Vec<String> = vec!["".into(), "interpret".into(), "test.lox".into()];
 
     if args.len() < 3 {
         let path = Path::new(&args[0]);
@@ -85,28 +94,34 @@ fn handle_args() -> Result<InterpreterCommand, InterpreterError> {
     return match args[1].as_str() {
         "tokenize" => Ok(InterpreterCommand::Tokenize(args[2].clone())),
         "parse" => Ok(InterpreterCommand::Parse(args[2].clone())),
+        "interpret" => Ok(InterpreterCommand::Interpret(args[2].clone())),
         _ => Err(InterpreterError::UnknownCommand(args[1].clone())),
     };
 }
 
-fn parse_file(filename: &String) -> Result<(), InterpreterError> {
+fn interpret_file(filename: &String) -> Result<(), InterpreterError> {
+    let statements = parse_file(filename, false)?;
+    let interpreter = interpreter::Interpreter;
+    interpreter.interpret(&statements)?;
+
+    Ok(())
+}
+
+fn parse_file(filename: &String, print_tree: bool) -> Result<Vec<Statement>, InterpreterError> {
     let tokens = tokenize_file(filename, false)?;
     let mut parser = Parser::new(tokens);
-    let expression = parser.parse();
-    let printer = AstPrinter;
+    let statements = parser.parse()?;
 
-    match expression {
-        Ok(expression) => println!("{}", printer.print(&expression)),
-        Err(_) => {
-            return Err(InterpreterError::ParserFailure);
+    if print_tree {
+        let printer = ExpressionPrinter;
+        for statement in &statements {
+            if let Statement::Expression(expr) = statement {
+                printer.print(expr);
+            }
         }
     }
 
-    if parser.failed() {
-        return Err(InterpreterError::ParserFailure);
-    }
-
-    Ok(())
+    Ok(statements)
 }
 
 fn tokenize_file(filename: &String, print_tokens: bool) -> Result<Vec<Token>, InterpreterError> {

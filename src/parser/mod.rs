@@ -1,13 +1,15 @@
-pub mod ast_visitor;
 pub mod binary_expression;
 pub mod expression;
+pub mod expression_value;
 pub mod grouping_expression;
 pub mod literal_expression;
 pub mod parse_error;
+pub mod statement;
 pub mod unary_expression;
 
 use expression::Expression;
 use parse_error::ParseError;
+use statement::Statement;
 
 use crate::token::{token_type::TokenType, Token};
 
@@ -39,12 +41,15 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Expression, ParseError> {
-        self.expression()
-    }
+    pub fn parse(&mut self) -> Result<Vec<Statement>, ParseError> {
+        let mut statements: Vec<Statement> = Vec::new();
 
-    pub fn failed(&self) -> bool {
-        self.failed
+        while !self.is_at_end() {
+            let stmt = self.statement()?;
+            statements.push(stmt);
+        }
+
+        Ok(statements)
     }
 
     fn advance(&mut self) -> Option<&Token> {
@@ -111,7 +116,7 @@ impl Parser {
         }
 
         self.failed = true;
-        ParseError::new(token.clone(), message.to_string())
+        ParseError::Error(token.token_type, message.to_string())
     }
 
     fn equality(&mut self) -> Result<Expression, ParseError> {
@@ -131,6 +136,15 @@ impl Parser {
         self.equality()
     }
 
+    fn expression_statement(&mut self) -> Result<Statement, ParseError> {
+        let expr = self.expression()?;
+        if let Err(err) = self.consume(TokenType::Semicolon, "Expect ';' after expression.") {
+            Err(err)
+        } else {
+            Ok(Statement::Expression(expr))
+        }
+    }
+
     fn factor(&mut self) -> Result<Expression, ParseError> {
         let mut expr = self.unary()?;
 
@@ -142,6 +156,14 @@ impl Parser {
         }
 
         Ok(expr)
+    }
+
+    fn is_at_end(&self) -> bool {
+        if let Some(token) = self.peek() {
+            token.token_type == TokenType::Eof
+        } else {
+            true
+        }
     }
 
     fn peek(&self) -> Option<&Token> {
@@ -183,8 +205,25 @@ impl Parser {
         Err(self.error(&token, "Expect expression."))
     }
 
+    fn print_statement(&mut self) -> Result<Statement, ParseError> {
+        let expr = self.expression()?;
+        if let Err(err) = self.consume(TokenType::Semicolon, "Expect ';' after value.") {
+            Err(err)
+        } else {
+            Ok(Statement::Print(expr))
+        }
+    }
+
     fn report(&self, line: usize, location: &str, message: &str) {
         eprintln!("[line {line}] Error{location}: {message}");
+    }
+
+    fn statement(&mut self) -> Result<Statement, ParseError> {
+        if match_tokens!(self, TokenType::Print) {
+            self.print_statement()
+        } else {
+            self.expression_statement()
+        }
     }
 
     fn synchronize(&mut self) {

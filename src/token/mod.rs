@@ -2,17 +2,10 @@ use std::fmt::Display;
 use std::io::Write;
 
 use token_type::TokenType;
+use token_value::TokenValue;
 
 pub mod token_type;
-
-#[derive(Debug, Default, Clone, PartialEq)]
-pub enum TokenValue {
-    #[default]
-    None,
-    Number(f64),
-    String(String),
-    Identifier(String),
-}
+pub mod token_value;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {

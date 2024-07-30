@@ -1,20 +1,12 @@
 use std::fmt::Display;
 
-use crate::token::Token;
+use crate::{token::Token, visitor::expression_visitor::ExpressionVisitor};
 
 use super::{
-    ast_visitor::AstVisitor, binary_expression::BinaryExpression,
+    binary_expression::BinaryExpression, expression_value::ExpressionValue,
     grouping_expression::GroupingExpression, literal_expression::LiteralExpression,
     unary_expression::UnaryExpression,
 };
-
-#[derive(Debug, PartialEq)]
-pub enum Value {
-    Number(f64),
-    String(String),
-    Boolean(bool),
-    Nil,
-}
 
 #[derive(Debug, PartialEq)]
 pub enum Expression {
@@ -47,7 +39,7 @@ impl Expression {
 }
 
 impl Expression {
-    pub fn accept<T>(&self, visitor: &dyn AstVisitor<T>) -> T {
+    pub fn accept<T, E>(&self, visitor: &dyn ExpressionVisitor<T, E>) -> Result<T, E> {
         match self {
             Expression::Binary(expr) => visitor.visit_binary(expr),
             Expression::Grouping(expr) => visitor.visit_grouping(expr),
@@ -57,19 +49,19 @@ impl Expression {
     }
 }
 
-impl Display for Value {
+impl Display for ExpressionValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Value::String(str) => write!(f, "{}", str),
-            Value::Number(num) => {
+            ExpressionValue::String(str) => write!(f, "{}", str),
+            ExpressionValue::Number(num) => {
                 if f64::trunc(*num) == *num {
                     write!(f, "{:.1}", num)
                 } else {
                     write!(f, "{}", num)
                 }
             }
-            Value::Boolean(bool) => write!(f, "{}", bool),
-            Value::Nil => write!(f, "nil"),
+            ExpressionValue::Boolean(bool) => write!(f, "{}", bool),
+            ExpressionValue::Nil => write!(f, "nil"),
         }
     }
 }
