@@ -1,72 +1,115 @@
 use std::fmt::Display;
 
-use crate::{token::Token, visitor::expression_visitor::ExpressionVisitor};
-
-use super::{
-    assignment_expression::AssignmentExpression, binary_expression::BinaryExpression,
-    expression_value::ExpressionValue, grouping_expression::GroupingExpression,
-    literal_expression::LiteralExpression, logical_expression::LogicalExpression,
-    unary_expression::UnaryExpression, variable_expression::VariableExpression,
+use crate::{
+    token::{token_type::TokenType, token_value::TokenValue, Token},
+    visitor::expression_visitor::ExpressionVisitor,
 };
 
-#[derive(Debug, PartialEq)]
+use super::expression_value::ExpressionValue;
+
 pub enum Expression {
-    Assignment(Box<AssignmentExpression>),
-    Binary(Box<BinaryExpression>),
-    Grouping(Box<GroupingExpression>),
-    Literal(Box<LiteralExpression>),
-    Logical(Box<LogicalExpression>),
-    Unary(Box<UnaryExpression>),
-    Variable(Box<VariableExpression>),
+    Assignment {
+        name: Token,
+        expression: Box<Expression>,
+    },
+    Binary {
+        left: Box<Expression>,
+        operator: Token,
+        right: Box<Expression>,
+    },
+    Grouping {
+        expression: Box<Expression>,
+    },
+    Literal {
+        value: ExpressionValue,
+    },
+    Logical {
+        left: Box<Expression>,
+        operator: Token,
+        right: Box<Expression>,
+    },
+    Unary {
+        operator: Token,
+        right: Box<Expression>,
+    },
+    Variable {
+        name: Token,
+    },
 }
 
 impl Expression {
     pub fn new_assignment(name: Token, expression: Expression) -> Self {
-        let expr = AssignmentExpression::new(name, expression);
-        Expression::Assignment(Box::new(expr))
+        Expression::Assignment {
+            name,
+            expression: Box::new(expression),
+        }
     }
 
     pub fn new_binary(left: Expression, operand: Token, right: Expression) -> Self {
-        let expr = BinaryExpression::new(left, operand, right);
-        Expression::Binary(Box::new(expr))
+        Expression::Binary {
+            left: Box::new(left),
+            operator: operand,
+            right: Box::new(right),
+        }
     }
 
     pub fn new_grouping(expression: Expression) -> Self {
-        let expr = GroupingExpression::new(expression);
-        Expression::Grouping(Box::new(expr))
+        Expression::Grouping {
+            expression: Box::new(expression),
+        }
     }
 
     pub fn new_literal(token: &Token) -> Self {
-        let expr = LiteralExpression::new(token);
-        Expression::Literal(Box::new(expr))
+        let value = match (&token.token_type, &token.value) {
+            (TokenType::Nil, _) => ExpressionValue::Nil,
+            (TokenType::False, _) => ExpressionValue::Boolean(false),
+            (TokenType::True, _) => ExpressionValue::Boolean(true),
+            (_, TokenValue::Number(num)) => ExpressionValue::Number(*num),
+            (_, TokenValue::String(str)) => ExpressionValue::String(str.clone()),
+            _ => unreachable!("Invalid token value for literal expression {:?}", token),
+        };
+
+        Expression::Literal { value }
     }
 
-    pub fn new_logical(left: Expression, operand: Token, right: Expression) -> Self {
-        let expr = LogicalExpression::new(left, operand, right);
-        Expression::Logical(Box::new(expr))
+    pub fn new_logical(left: Expression, operator: Token, right: Expression) -> Self {
+        Expression::Logical {
+            left: Box::new(left),
+            operator,
+            right: Box::new(right),
+        }
     }
 
     pub fn new_unary(operator: Token, right: Expression) -> Self {
-        let expr = UnaryExpression::new(operator, right);
-        Expression::Unary(Box::new(expr))
+        Expression::Unary {
+            operator,
+            right: Box::new(right),
+        }
     }
 
     pub fn new_variable(name: Token) -> Self {
-        let expr = VariableExpression::new(name);
-        Expression::Variable(Box::new(expr))
+        Expression::Variable { name }
     }
-}
 
-impl Expression {
     pub fn accept<T, E>(&self, visitor: &mut dyn ExpressionVisitor<T, E>) -> Result<T, E> {
         match self {
-            Expression::Assignment(expr) => visitor.visit_assignment(expr),
-            Expression::Binary(expr) => visitor.visit_binary(expr),
-            Expression::Grouping(expr) => visitor.visit_grouping(expr),
-            Expression::Literal(expr) => visitor.visit_literal(expr),
-            Expression::Logical(expr) => visitor.visit_logical(expr),
-            Expression::Unary(expr) => visitor.visit_unary(expr),
-            Expression::Variable(expr) => visitor.visit_variable(expr),
+            Expression::Assignment { name, expression } => {
+                visitor.visit_assignment(name, expression)
+            }
+            Expression::Binary {
+                left,
+                operator,
+                right,
+            } => visitor.visit_binary(left, operator, right),
+            Expression::Grouping { expression } => visitor.visit_grouping(expression),
+            Expression::Literal { value } => visitor.visit_literal(value),
+            Expression::Logical {
+                left,
+                operator,
+                right,
+            } => visitor.visit_logical(left, operator, right),
+            Expression::Unary { operator, right } => visitor.visit_unary(operator, right),
+            Expression::Variable { name } => visitor.visit_variable(name),
         }
     }
 }

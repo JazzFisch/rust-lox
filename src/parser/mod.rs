@@ -1,14 +1,7 @@
-pub mod assignment_expression;
-pub mod binary_expression;
 pub mod expression;
 pub mod expression_value;
-pub mod grouping_expression;
-pub mod literal_expression;
-pub mod logical_expression;
 pub mod parse_error;
 pub mod statement;
-pub mod unary_expression;
-pub mod variable_expression;
 
 use expression::Expression;
 use parse_error::ParseError;
@@ -82,8 +75,8 @@ impl Parser {
             let equals = self.previous().unwrap().clone();
             let value = self.assignment()?;
 
-            if let Expression::Variable(var) = expr {
-                return Ok(Expression::new_assignment(var.name().clone(), value));
+            if let Expression::Variable { name } = expr {
+                return Ok(Expression::new_assignment(name, value));
             }
 
             // We report an error if the left-hand side isn’t a valid assignment target,

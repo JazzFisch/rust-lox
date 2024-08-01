@@ -1,16 +1,24 @@
-use crate::parser::{
-    assignment_expression::AssignmentExpression, binary_expression::BinaryExpression,
-    grouping_expression::GroupingExpression, literal_expression::LiteralExpression,
-    logical_expression::LogicalExpression, unary_expression::UnaryExpression,
-    variable_expression::VariableExpression,
+use crate::{
+    parser::{expression::Expression, expression_value::ExpressionValue},
+    token::Token,
 };
 
 pub trait ExpressionVisitor<T, E> {
-    fn visit_assignment(&mut self, assignment: &AssignmentExpression) -> Result<T, E>;
-    fn visit_binary(&mut self, binary: &BinaryExpression) -> Result<T, E>;
-    fn visit_grouping(&mut self, grouping: &GroupingExpression) -> Result<T, E>;
-    fn visit_literal(&mut self, literal: &LiteralExpression) -> Result<T, E>;
-    fn visit_logical(&mut self, logical: &LogicalExpression) -> Result<T, E>;
-    fn visit_unary(&mut self, unary: &UnaryExpression) -> Result<T, E>;
-    fn visit_variable(&mut self, variable: &VariableExpression) -> Result<T, E>;
+    fn visit_assignment(&mut self, name: &Token, expression: &Expression) -> Result<T, E>;
+    fn visit_binary(
+        &mut self,
+        left: &Expression,
+        operator: &Token,
+        right: &Expression,
+    ) -> Result<T, E>;
+    fn visit_grouping(&mut self, expression: &Expression) -> Result<T, E>;
+    fn visit_literal(&mut self, value: &ExpressionValue) -> Result<T, E>;
+    fn visit_logical(
+        &mut self,
+        left: &Expression,
+        operator: &Token,
+        right: &Expression,
+    ) -> Result<T, E>;
+    fn visit_unary(&mut self, operator: &Token, right: &Expression) -> Result<T, E>;
+    fn visit_variable(&mut self, name: &Token) -> Result<T, E>;
 }

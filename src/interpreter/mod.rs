@@ -5,13 +5,7 @@ use environment::Environment;
 use interpreter_error::InterpreterError;
 
 use crate::{
-    parser::{
-        assignment_expression::AssignmentExpression, binary_expression::BinaryExpression,
-        expression::Expression, expression_value::ExpressionValue,
-        grouping_expression::GroupingExpression, literal_expression::LiteralExpression,
-        logical_expression::LogicalExpression, statement::Statement,
-        unary_expression::UnaryExpression, variable_expression::VariableExpression,
-    },
+    parser::{expression::Expression, expression_value::ExpressionValue, statement::Statement},
     token::{token_type::TokenType, token_value::TokenValue, Token},
     visitor::{expression_visitor::ExpressionVisitor, statement_visitor::StatementVisitor},
 };
@@ -111,20 +105,22 @@ impl Interpreter {
 impl ExpressionVisitor<ExpressionValue, InterpreterError> for Interpreter {
     fn visit_assignment(
         &mut self,
-        assignment: &AssignmentExpression,
+        name: &Token,
+        expression: &Expression,
     ) -> Result<ExpressionValue, InterpreterError> {
-        let value = self.evaluate(assignment.expression())?;
-        self.environment.assign(assignment.name(), value.clone())?;
+        let value = self.evaluate(expression)?;
+        self.environment.assign(name, value.clone())?;
         Ok(value)
     }
 
     fn visit_binary(
         &mut self,
-        expr: &BinaryExpression,
+        left: &Expression,
+        operator: &Token,
+        right: &Expression,
     ) -> Result<ExpressionValue, InterpreterError> {
-        let left = self.evaluate(expr.left())?;
-        let operator = expr.operator();
-        let right = self.evaluate(expr.right())?;
+        let left = self.evaluate(left)?;
+        let right = self.evaluate(right)?;
 
         // special case for string concatenation
         if let (ExpressionValue::String(left), TokenType::Plus, ExpressionValue::Number(right)) =
@@ -170,35 +166,35 @@ impl ExpressionVisitor<ExpressionValue, InterpreterError> for Interpreter {
             TokenType::EqualEqual => Ok(ExpressionValue::Boolean(is_equal(&left, &right))),
             _ => unreachable!(
                 "Invalid binary expression ({} {} {})",
-                left,
-                expr.operator().token_type,
-                right
+                left, operator.token_type, right
             ),
         }
     }
 
     fn visit_grouping(
         &mut self,
-        expr: &GroupingExpression,
+        expression: &Expression,
     ) -> Result<ExpressionValue, InterpreterError> {
-        let value = self.evaluate(expr.expression())?;
+        let value = self.evaluate(expression)?;
         Ok(value)
     }
 
     fn visit_literal(
         &mut self,
-        expr: &LiteralExpression,
+        value: &ExpressionValue,
     ) -> Result<ExpressionValue, InterpreterError> {
-        Ok(expr.value().clone())
+        Ok(value.clone())
     }
 
     fn visit_logical(
         &mut self,
-        logical: &LogicalExpression,
+        left: &Expression,
+        operator: &Token,
+        right: &Expression,
     ) -> Result<ExpressionValue, InterpreterError> {
-        let left = self.evaluate(logical.left())?;
+        let left = self.evaluate(left)?;
 
-        if logical.operator().token_type == TokenType::Or {
+        if operator.token_type == TokenType::Or {
             if is_truthy(&left) {
                 return Ok(left);
             }
@@ -206,12 +202,15 @@ impl ExpressionVisitor<ExpressionValue, InterpreterError> for Interpreter {
             return Ok(left);
         }
 
-        self.evaluate(logical.right())
+        self.evaluate(right)
     }
 
-    fn visit_unary(&mut self, expr: &UnaryExpression) -> Result<ExpressionValue, InterpreterError> {
-        let operator = expr.operator();
-        let right = self.evaluate(expr.right())?;
+    fn visit_unary(
+        &mut self,
+        operator: &Token,
+        right: &Expression,
+    ) -> Result<ExpressionValue, InterpreterError> {
+        let right = self.evaluate(right)?;
 
         match (operator.token_type, &right) {
             (TokenType::Minus, ExpressionValue::Number(num)) => {
@@ -231,11 +230,8 @@ impl ExpressionVisitor<ExpressionValue, InterpreterError> for Interpreter {
         }
     }
 
-    fn visit_variable(
-        &mut self,
-        var: &VariableExpression,
-    ) -> Result<ExpressionValue, InterpreterError> {
-        if let TokenValue::Identifier(name) = &var.name().value {
+    fn visit_variable(&mut self, name: &Token) -> Result<ExpressionValue, InterpreterError> {
+        if let TokenValue::Identifier(name) = &name.value {
             let value = self.environment.get(name)?;
             return Ok(value.clone());
         }
