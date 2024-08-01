@@ -1,7 +1,8 @@
 use crate::parser::{
     assignment_expression::AssignmentExpression, binary_expression::BinaryExpression,
     expression::Expression, grouping_expression::GroupingExpression,
-    literal_expression::LiteralExpression, unary_expression::UnaryExpression,
+    literal_expression::LiteralExpression, logical_expression::LogicalExpression,
+    unary_expression::UnaryExpression,
 };
 
 use super::expression_visitor::ExpressionVisitor;
@@ -36,6 +37,13 @@ impl ExpressionVisitor<String, String> for ExpressionPrinter {
     fn visit_literal(&mut self, literal: &LiteralExpression) -> Result<String, String> {
         let value = literal.value();
         Ok(format!("{}", value))
+    }
+
+    fn visit_logical(&mut self, logical: &LogicalExpression) -> Result<String, String> {
+        let left = logical.left().accept(self)?;
+        let operator = logical.operator();
+        let right = logical.right().accept(self)?;
+        Ok(format!("({} {} {})", operator.token_type, left, right))
     }
 
     fn visit_unary(&mut self, unary: &UnaryExpression) -> Result<String, String> {

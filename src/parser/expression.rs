@@ -5,8 +5,8 @@ use crate::{token::Token, visitor::expression_visitor::ExpressionVisitor};
 use super::{
     assignment_expression::AssignmentExpression, binary_expression::BinaryExpression,
     expression_value::ExpressionValue, grouping_expression::GroupingExpression,
-    literal_expression::LiteralExpression, unary_expression::UnaryExpression,
-    variable_expression::VariableExpression,
+    literal_expression::LiteralExpression, logical_expression::LogicalExpression,
+    unary_expression::UnaryExpression, variable_expression::VariableExpression,
 };
 
 #[derive(Debug, PartialEq)]
@@ -15,6 +15,7 @@ pub enum Expression {
     Binary(Box<BinaryExpression>),
     Grouping(Box<GroupingExpression>),
     Literal(Box<LiteralExpression>),
+    Logical(Box<LogicalExpression>),
     Unary(Box<UnaryExpression>),
     Variable(Box<VariableExpression>),
 }
@@ -40,6 +41,11 @@ impl Expression {
         Expression::Literal(Box::new(expr))
     }
 
+    pub fn new_logical(left: Expression, operand: Token, right: Expression) -> Self {
+        let expr = LogicalExpression::new(left, operand, right);
+        Expression::Logical(Box::new(expr))
+    }
+
     pub fn new_unary(operator: Token, right: Expression) -> Self {
         let expr = UnaryExpression::new(operator, right);
         Expression::Unary(Box::new(expr))
@@ -58,6 +64,7 @@ impl Expression {
             Expression::Binary(expr) => visitor.visit_binary(expr),
             Expression::Grouping(expr) => visitor.visit_grouping(expr),
             Expression::Literal(expr) => visitor.visit_literal(expr),
+            Expression::Logical(expr) => visitor.visit_logical(expr),
             Expression::Unary(expr) => visitor.visit_unary(expr),
             Expression::Variable(expr) => visitor.visit_variable(expr),
         }

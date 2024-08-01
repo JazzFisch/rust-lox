@@ -4,6 +4,7 @@ pub mod expression;
 pub mod expression_value;
 pub mod grouping_expression;
 pub mod literal_expression;
+pub mod logical_expression;
 pub mod parse_error;
 pub mod statement;
 pub mod unary_expression;
@@ -63,9 +64,20 @@ impl Parser {
         None
     }
 
-    fn assignment(&mut self) -> Result<Expression, ParseError> {
-        let expr = self.equality()?;
+    fn and(&mut self) -> Result<Expression, ParseError> {
+        let mut expr = self.equality()?;
 
+        while match_tokens!(self, TokenType::And) {
+            let operator = self.previous().unwrap().clone();
+            let right = self.equality()?;
+            expr = Expression::new_logical(expr, operator, right);
+        }
+
+        Ok(expr)
+    }
+
+    fn assignment(&mut self) -> Result<Expression, ParseError> {
+        let expr = self.or()?;
         if match_tokens!(self, TokenType::Equal) {
             let equals = self.previous().unwrap().clone();
             let value = self.assignment()?;
@@ -74,10 +86,28 @@ impl Parser {
                 return Ok(Expression::new_assignment(var.name().clone(), value));
             }
 
-            return Err(self.error(&equals, "Invalid assignment target."));
+            // We report an error if the left-hand side isn’t a valid assignment target,
+            // but we don’t throw it because the parser isn’t in a confused state where
+            // we need to go into panic mode and synchronize.
+            let _ = self.error(&equals, "Invalid assignment target.");
         }
 
         Ok(expr)
+    }
+
+    fn block_statement(&mut self) -> Result<Vec<Statement>, ParseError> {
+        let mut statements: Vec<Statement> = Vec::new();
+
+        while !self.check(TokenType::RightBrace) && !self.is_at_end() {
+            let stmt = self.declaration()?;
+            statements.push(stmt);
+        }
+
+        if let Err(err) = self.consume(TokenType::RightBrace, "Expect '}' after block.") {
+            Err(err)
+        } else {
+            Ok(statements)
+        }
     }
 
     fn check(&self, token_type: TokenType) -> bool {
@@ -189,12 +219,90 @@ impl Parser {
         Ok(expr)
     }
 
+    // for ( <initializer>; <condition>; <increment>) { <body> }
+    fn for_statement(&mut self) -> Result<Statement, ParseError> {
+        let _ = self.consume(TokenType::LeftParen, "Expect '(' after 'for'.");
+
+        // first we handle <initializer>
+        let initializer: Option<Statement>;
+        if match_tokens!(self, TokenType::Semicolon) {
+            initializer = None;
+        } else if match_tokens!(self, TokenType::Var) {
+            initializer = Some(self.variable_declaration()?);
+        } else {
+            initializer = Some(self.expression_statement()?);
+        }
+
+        // next, the <condition>
+        // a missing condition's value is true
+        let mut condition = Expression::new_literal(&Token::from_token_type(0, TokenType::True));
+        if !self.check(TokenType::Semicolon) {
+            condition = self.expression()?;
+        }
+        let _ = self.consume(TokenType::Semicolon, "Expect ';' after loop condition.");
+
+        // then, the <increment>
+        let mut increment: Option<Expression> = None;
+        if !self.check(TokenType::RightParen) {
+            increment = Some(self.expression()?);
+        }
+        let _ = self.consume(TokenType::RightParen, "Expect ')' after for clauses.");
+
+        // and finally, the <body>
+        let mut body = self.statement()?;
+
+        // now to desugar into a while loop
+        // working backward, we place the increment expression at the bottom
+        // of the block that contains the body
+        if let Some(increment) = increment {
+            body = Statement::Block(vec![body, Statement::Expression(increment)])
+        }
+
+        // wrap the condition an new body inside of a while statement
+        body = Statement::While(condition, Box::new(body));
+
+        // finally, if there is an initializer, place it at the
+        // head of the body block
+        if let Some(initializer) = initializer {
+            body = Statement::Block(vec![initializer, body])
+        }
+
+        Ok(body)
+    }
+
+    fn if_statement(&mut self) -> Result<Statement, ParseError> {
+        let _ = self.consume(TokenType::LeftParen, "Expect '(' after 'if'.");
+        let condition = self.expression()?;
+        let _ = self.consume(TokenType::RightParen, "Expect ')' after if condition.");
+
+        let then_branch = self.statement()?;
+        let mut else_branch: Option<Box<Statement>> = None;
+        if match_tokens!(self, TokenType::Else) {
+            let stmt = self.statement()?;
+            else_branch = Some(Box::new(stmt));
+        }
+
+        Ok(Statement::If(condition, Box::new(then_branch), else_branch))
+    }
+
     fn is_at_end(&self) -> bool {
         if let Some(token) = self.peek() {
             token.token_type == TokenType::Eof
         } else {
             true
         }
+    }
+
+    fn or(&mut self) -> Result<Expression, ParseError> {
+        let mut expr = self.and()?;
+
+        while match_tokens!(self, TokenType::Or) {
+            let operator = self.previous().unwrap().clone();
+            let right = self.expression()?;
+            expr = Expression::new_logical(expr, operator, right);
+        }
+
+        Ok(expr)
     }
 
     fn peek(&self) -> Option<&Token> {
@@ -256,8 +364,17 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Statement, ParseError> {
-        if match_tokens!(self, TokenType::Print) {
+        if match_tokens!(self, TokenType::For) {
+            self.for_statement()
+        } else if match_tokens!(self, TokenType::If) {
+            self.if_statement()
+        } else if match_tokens!(self, TokenType::Print) {
             self.print_statement()
+        } else if match_tokens!(self, TokenType::While) {
+            self.while_statement()
+        } else if match_tokens!(self, TokenType::LeftBrace) {
+            let block = self.block_statement()?;
+            Ok(Statement::Block(block))
         } else {
             self.expression_statement()
         }
@@ -311,6 +428,7 @@ impl Parser {
         self.primary()
     }
 
+    // var <name> [ = <expression> ];
     fn variable_declaration(&mut self) -> Result<Statement, ParseError> {
         let name = self.consume(TokenType::Identifier, "Expect variable name.")?;
         let name = name.unwrap().clone();
@@ -325,5 +443,15 @@ impl Parser {
         } else {
             Ok(Statement::Variable(name, expr))
         }
+    }
+
+    // while (<condition>) { <body> }
+    fn while_statement(&mut self) -> Result<Statement, ParseError> {
+        let _ = self.consume(TokenType::LeftParen, "Expect '(' after 'while'.");
+        let condition = self.expression()?;
+        let _ = self.consume(TokenType::RightParen, "Expect ')' after condition.");
+        let body = self.statement()?;
+
+        Ok(Statement::While(condition, Box::new(body)))
     }
 }

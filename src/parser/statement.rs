@@ -6,17 +6,25 @@ use crate::{
 use super::expression::Expression;
 
 pub enum Statement {
+    Block(Vec<Statement>),
     Expression(Expression),
+    If(Expression, Box<Statement>, Option<Box<Statement>>),
     Print(Expression),
     Variable(Token, Option<Expression>),
+    While(Expression, Box<Statement>),
 }
 
 impl Statement {
     pub fn accept(&self, visitor: &mut dyn StatementVisitor) -> Result<(), InterpreterError> {
         match self {
+            Statement::Block(statements) => visitor.visit_block_statement(statements),
             Statement::Expression(expr) => visitor.visit_expression_statement(expr),
+            Statement::If(condition, then_branch, else_branch) => {
+                visitor.visit_if_statement(condition, then_branch, else_branch)
+            }
             Statement::Print(expr) => visitor.visit_print_statement(expr),
             Statement::Variable(name, expr) => visitor.visit_variable_statement(name, expr),
+            Statement::While(condition, body) => visitor.visit_while_statement(condition, body),
         }
     }
 }

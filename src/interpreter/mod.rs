@@ -9,8 +9,8 @@ use crate::{
         assignment_expression::AssignmentExpression, binary_expression::BinaryExpression,
         expression::Expression, expression_value::ExpressionValue,
         grouping_expression::GroupingExpression, literal_expression::LiteralExpression,
-        statement::Statement, unary_expression::UnaryExpression,
-        variable_expression::VariableExpression,
+        logical_expression::LogicalExpression, statement::Statement,
+        unary_expression::UnaryExpression, variable_expression::VariableExpression,
     },
     token::{token_type::TokenType, token_value::TokenValue, Token},
     visitor::{expression_visitor::ExpressionVisitor, statement_visitor::StatementVisitor},
@@ -90,6 +90,21 @@ impl Interpreter {
 
     fn execute(&mut self, stmt: &Statement) -> Result<(), InterpreterError> {
         stmt.accept(self)
+    }
+
+    fn execute_block(&mut self, statements: &[Statement]) -> Result<(), InterpreterError> {
+        self.environment.push_child();
+
+        let mut result: Result<(), InterpreterError> = Ok(());
+        for statement in statements {
+            if let Err(err) = self.execute(statement) {
+                result = Err(err);
+                break;
+            }
+        }
+
+        self.environment.pop_child();
+        result
     }
 }
 
@@ -177,6 +192,23 @@ impl ExpressionVisitor<ExpressionValue, InterpreterError> for Interpreter {
         Ok(expr.value().clone())
     }
 
+    fn visit_logical(
+        &mut self,
+        logical: &LogicalExpression,
+    ) -> Result<ExpressionValue, InterpreterError> {
+        let left = self.evaluate(logical.left())?;
+
+        if logical.operator().token_type == TokenType::Or {
+            if is_truthy(&left) {
+                return Ok(left);
+            }
+        } else if !is_truthy(&left) {
+            return Ok(left);
+        }
+
+        self.evaluate(logical.right())
+    }
+
     fn visit_unary(&mut self, expr: &UnaryExpression) -> Result<ExpressionValue, InterpreterError> {
         let operator = expr.operator();
         let right = self.evaluate(expr.right())?;
@@ -212,8 +244,28 @@ impl ExpressionVisitor<ExpressionValue, InterpreterError> for Interpreter {
 }
 
 impl StatementVisitor for Interpreter {
+    fn visit_block_statement(&mut self, statements: &[Statement]) -> Result<(), InterpreterError> {
+        self.execute_block(statements)
+    }
+
     fn visit_expression_statement(&mut self, expr: &Expression) -> Result<(), InterpreterError> {
         let _ = self.evaluate(expr)?;
+        Ok(())
+    }
+
+    fn visit_if_statement(
+        &mut self,
+        condition: &Expression,
+        then_branch: &Statement,
+        else_branch: &Option<Box<Statement>>,
+    ) -> Result<(), InterpreterError> {
+        let condition = self.evaluate(condition)?;
+        if is_truthy(&condition) {
+            self.execute(then_branch)?;
+        } else if let Some(else_branch) = else_branch {
+            self.execute(else_branch)?;
+        }
+
         Ok(())
     }
 
@@ -236,6 +288,18 @@ impl StatementVisitor for Interpreter {
         if let TokenValue::Identifier(name) = &name.value {
             let name = name.clone();
             self.environment.define(name, value);
+        }
+
+        Ok(())
+    }
+
+    fn visit_while_statement(
+        &mut self,
+        condition: &Expression,
+        body: &Statement,
+    ) -> Result<(), InterpreterError> {
+        while is_truthy(&self.evaluate(condition)?) {
+            self.execute(body)?;
         }
 
         Ok(())
