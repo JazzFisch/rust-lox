@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     parser::object::Object,
@@ -7,60 +7,54 @@ use crate::{
 
 use super::interpreter_error::InterpreterError;
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Environment {
-    stack: VecDeque<HashMap<String, Object>>,
+    pub parent: Option<Rc<RefCell<Environment>>>,
+    values: HashMap<String, Object>,
 }
 
 impl Environment {
     pub fn new() -> Self {
-        let first: HashMap<String, Object> = HashMap::new();
-
         Self {
-            stack: VecDeque::from(vec![first]),
+            parent: None,
+            values: HashMap::new(),
         }
     }
 
-    pub fn assign(&mut self, name: &Token, value: Object) -> Result<(), InterpreterError> {
-        if let TokenValue::Identifier(name) = &name.value {
-            for values in self.stack.iter_mut() {
-                if values.contains_key(name) {
-                    values.insert(name.clone(), value);
-                    return Ok(());
-                }
+    pub fn new_with_parent(parent: Rc<RefCell<Environment>>) -> Self {
+        Self {
+            parent: Some(parent),
+            values: HashMap::new(),
+        }
+    }
+
+    pub fn assign(&mut self, name_token: &Token, value: Object) -> Result<(), InterpreterError> {
+        if let TokenValue::Identifier(name) = &name_token.value {
+            if self.values.contains_key(name) {
+                self.values.insert(name.clone(), value);
+                return Ok(());
+            } else if let Some(parent) = &mut self.parent {
+                return parent.borrow_mut().assign(name_token, value);
             }
         }
 
         Err(InterpreterError::RuntimeError(format!(
             "Undefined variable '{}'.",
-            name.value
+            name_token.value
         )))
     }
 
     pub fn define(&mut self, name: String, value: Object) {
-        self.stack.front_mut().unwrap().insert(name, value);
+        self.values.insert(name, value);
     }
 
     pub fn get(&self, name: &str) -> Result<Object, InterpreterError> {
-        for values in self.stack.iter() {
-            if let Some(value) = values.get(name) {
-                return Ok(value.clone());
-            }
+        if let Some(value) = self.values.get(name) {
+            return Ok(value.clone());
+        } else if let Some(parent) = &self.parent {
+            return parent.borrow().get(name);
         }
 
         Err(InterpreterError::UndefinedVariable(name.to_string()))
-    }
-
-    pub fn pop_child(&mut self) {
-        if self.stack.len() == 1 {
-            unreachable!("Cannot pop the global environment");
-        }
-
-        self.stack.pop_front();
-    }
-
-    pub fn push_child(&mut self) {
-        let child: HashMap<String, Object> = HashMap::new();
-        self.stack.push_front(child);
     }
 }

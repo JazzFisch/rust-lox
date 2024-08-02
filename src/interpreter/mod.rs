@@ -1,6 +1,8 @@
 pub mod environment;
 pub mod interpreter_error;
 
+use std::{cell::RefCell, rc::Rc};
+
 use environment::Environment;
 use interpreter_error::InterpreterError;
 
@@ -11,7 +13,7 @@ use crate::{
 };
 
 pub struct Interpreter {
-    environment: Environment,
+    environment: Rc<RefCell<Environment>>,
 }
 
 fn check_number_operand(operator: &TokenType, operand: &Object) -> Result<(), InterpreterError> {
@@ -43,7 +45,7 @@ fn check_number_operands<'a>(
 impl Interpreter {
     pub fn new() -> Self {
         Interpreter {
-            environment: Environment::new(),
+            environment: Rc::new(RefCell::new(Environment::new())),
         }
     }
 
@@ -63,8 +65,13 @@ impl Interpreter {
         stmt.accept(self)
     }
 
-    fn execute_block(&mut self, statements: &[Statement]) -> Result<(), InterpreterError> {
-        self.environment.push_child();
+    fn execute_block(
+        &mut self,
+        statements: &[Statement],
+        environment: Rc<RefCell<Environment>>,
+    ) -> Result<(), InterpreterError> {
+        let current = self.environment.clone();
+        self.environment = environment;
 
         let mut result: Result<(), InterpreterError> = Ok(());
         for statement in statements {
@@ -74,7 +81,7 @@ impl Interpreter {
             }
         }
 
-        self.environment.pop_child();
+        self.environment = current;
         result
     }
 }
@@ -86,7 +93,7 @@ impl ExpressionVisitor<Object, InterpreterError> for Interpreter {
         expression: &Expression,
     ) -> Result<Object, InterpreterError> {
         let value = self.evaluate(expression)?;
-        self.environment.assign(name, value.clone())?;
+        self.environment.borrow_mut().assign(name, value.clone())?;
         Ok(value)
     }
 
@@ -203,7 +210,7 @@ impl ExpressionVisitor<Object, InterpreterError> for Interpreter {
 
     fn visit_variable(&mut self, name: &Token) -> Result<Object, InterpreterError> {
         if let TokenValue::Identifier(name) = &name.value {
-            let value = self.environment.get(name)?;
+            let value = self.environment.borrow().get(name)?;
             return Ok(value.clone());
         }
         unreachable!("Variable expression must have a string name");
@@ -212,7 +219,10 @@ impl ExpressionVisitor<Object, InterpreterError> for Interpreter {
 
 impl StatementVisitor for Interpreter {
     fn visit_block_statement(&mut self, statements: &[Statement]) -> Result<(), InterpreterError> {
-        self.execute_block(statements)
+        let environment = Rc::new(RefCell::new(Environment::new_with_parent(
+            self.environment.clone(),
+        )));
+        self.execute_block(statements, environment)
     }
 
     fn visit_expression_statement(&mut self, expr: &Expression) -> Result<(), InterpreterError> {
@@ -254,7 +264,7 @@ impl StatementVisitor for Interpreter {
 
         if let TokenValue::Identifier(name) = &name.value {
             let name = name.clone();
-            self.environment.define(name, value);
+            self.environment.borrow_mut().define(name, value);
         }
 
         Ok(())
