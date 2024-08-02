@@ -5,7 +5,7 @@ use environment::Environment;
 use interpreter_error::InterpreterError;
 
 use crate::{
-    parser::{expression::Expression, expression_value::ExpressionValue, statement::Statement},
+    parser::{expression::Expression, object::Object, statement::Statement},
     token::{token_type::TokenType, token_value::TokenValue, Token},
     visitor::{expression_visitor::ExpressionVisitor, statement_visitor::StatementVisitor},
 };
@@ -14,31 +14,8 @@ pub struct Interpreter {
     environment: Environment,
 }
 
-fn is_truthy(value: &ExpressionValue) -> bool {
-    match value {
-        ExpressionValue::Nil => false,
-        ExpressionValue::Boolean(val) => *val,
-        _ => true,
-    }
-}
-
-fn is_equal(left: &ExpressionValue, right: &ExpressionValue) -> bool {
-    match (left, right) {
-        (ExpressionValue::Nil, ExpressionValue::Nil) => true,
-        (ExpressionValue::Nil, _) => false,
-        (_, ExpressionValue::Nil) => false,
-        (ExpressionValue::Number(left), ExpressionValue::Number(right)) => left == right,
-        (ExpressionValue::String(left), ExpressionValue::String(right)) => left == right,
-        (ExpressionValue::Boolean(left), ExpressionValue::Boolean(right)) => left == right,
-        _ => false,
-    }
-}
-
-fn check_number_operand(
-    operator: &TokenType,
-    operand: &ExpressionValue,
-) -> Result<(), InterpreterError> {
-    if let ExpressionValue::Number(_) = operand {
+fn check_number_operand(operator: &TokenType, operand: &Object) -> Result<(), InterpreterError> {
+    if let Object::Number(_) = operand {
         Ok(())
     } else {
         Err(InterpreterError::RuntimeError(format!(
@@ -49,11 +26,11 @@ fn check_number_operand(
 }
 
 fn check_number_operands<'a>(
-    left: &'a ExpressionValue,
+    left: &'a Object,
     operator: &TokenType,
-    right: &'a ExpressionValue,
+    right: &'a Object,
 ) -> Result<(f64, f64), InterpreterError> {
-    if let (ExpressionValue::Number(left), ExpressionValue::Number(right)) = (left, right) {
+    if let (Object::Number(left), Object::Number(right)) = (left, right) {
         Ok((*left, *right))
     } else {
         Err(InterpreterError::RuntimeError(format!(
@@ -77,7 +54,7 @@ impl Interpreter {
         Ok(())
     }
 
-    fn evaluate(&mut self, expr: &Expression) -> Result<ExpressionValue, InterpreterError> {
+    fn evaluate(&mut self, expr: &Expression) -> Result<Object, InterpreterError> {
         let expr = expr.accept(self)?;
         Ok(expr)
     }
@@ -102,12 +79,12 @@ impl Interpreter {
     }
 }
 
-impl ExpressionVisitor<ExpressionValue, InterpreterError> for Interpreter {
+impl ExpressionVisitor<Object, InterpreterError> for Interpreter {
     fn visit_assignment(
         &mut self,
         name: &Token,
         expression: &Expression,
-    ) -> Result<ExpressionValue, InterpreterError> {
+    ) -> Result<Object, InterpreterError> {
         let value = self.evaluate(expression)?;
         self.environment.assign(name, value.clone())?;
         Ok(value)
@@ -118,52 +95,52 @@ impl ExpressionVisitor<ExpressionValue, InterpreterError> for Interpreter {
         left: &Expression,
         operator: &Token,
         right: &Expression,
-    ) -> Result<ExpressionValue, InterpreterError> {
+    ) -> Result<Object, InterpreterError> {
         let left = self.evaluate(left)?;
         let right = self.evaluate(right)?;
 
         // special case for string concatenation
-        if let (ExpressionValue::String(left), TokenType::Plus, ExpressionValue::Number(right)) =
+        if let (Object::String(left), TokenType::Plus, Object::Number(right)) =
             (&left, operator.token_type, &right)
         {
-            return Ok(ExpressionValue::String(format!("{}{}", left, right)));
+            return Ok(Object::String(format!("{}{}", left, right)));
         }
 
         match operator.token_type {
             TokenType::Minus => {
                 let (left, right) = check_number_operands(&left, &operator.token_type, &right)?;
-                Ok(ExpressionValue::Number(left - right))
+                Ok(Object::Number(left - right))
             }
             TokenType::Slash => {
                 let (left, right) = check_number_operands(&left, &operator.token_type, &right)?;
-                Ok(ExpressionValue::Number(left / right))
+                Ok(Object::Number(left / right))
             }
             TokenType::Star => {
                 let (left, right) = check_number_operands(&left, &operator.token_type, &right)?;
-                Ok(ExpressionValue::Number(left * right))
+                Ok(Object::Number(left * right))
             }
             TokenType::Plus => {
                 let (left, right) = check_number_operands(&left, &operator.token_type, &right)?;
-                Ok(ExpressionValue::Number(left + right))
+                Ok(Object::Number(left + right))
             }
             TokenType::Greater => {
                 let (left, right) = check_number_operands(&left, &operator.token_type, &right)?;
-                Ok(ExpressionValue::Boolean(left > right))
+                Ok(Object::Boolean(left > right))
             }
             TokenType::GreaterEqual => {
                 let (left, right) = check_number_operands(&left, &operator.token_type, &right)?;
-                Ok(ExpressionValue::Boolean(left >= right))
+                Ok(Object::Boolean(left >= right))
             }
             TokenType::Less => {
                 let (left, right) = check_number_operands(&left, &operator.token_type, &right)?;
-                Ok(ExpressionValue::Boolean(left < right))
+                Ok(Object::Boolean(left < right))
             }
             TokenType::LessEqual => {
                 let (left, right) = check_number_operands(&left, &operator.token_type, &right)?;
-                Ok(ExpressionValue::Boolean(left <= right))
+                Ok(Object::Boolean(left <= right))
             }
-            TokenType::BangEqual => Ok(ExpressionValue::Boolean(!is_equal(&left, &right))),
-            TokenType::EqualEqual => Ok(ExpressionValue::Boolean(is_equal(&left, &right))),
+            TokenType::BangEqual => Ok(Object::Boolean(left != right)),
+            TokenType::EqualEqual => Ok(Object::Boolean(left == right)),
             _ => unreachable!(
                 "Invalid binary expression ({} {} {})",
                 left, operator.token_type, right
@@ -171,18 +148,12 @@ impl ExpressionVisitor<ExpressionValue, InterpreterError> for Interpreter {
         }
     }
 
-    fn visit_grouping(
-        &mut self,
-        expression: &Expression,
-    ) -> Result<ExpressionValue, InterpreterError> {
+    fn visit_grouping(&mut self, expression: &Expression) -> Result<Object, InterpreterError> {
         let value = self.evaluate(expression)?;
         Ok(value)
     }
 
-    fn visit_literal(
-        &mut self,
-        value: &ExpressionValue,
-    ) -> Result<ExpressionValue, InterpreterError> {
+    fn visit_literal(&mut self, value: &Object) -> Result<Object, InterpreterError> {
         Ok(value.clone())
     }
 
@@ -191,14 +162,14 @@ impl ExpressionVisitor<ExpressionValue, InterpreterError> for Interpreter {
         left: &Expression,
         operator: &Token,
         right: &Expression,
-    ) -> Result<ExpressionValue, InterpreterError> {
+    ) -> Result<Object, InterpreterError> {
         let left = self.evaluate(left)?;
 
         if operator.token_type == TokenType::Or {
-            if is_truthy(&left) {
+            if left.is_truthy() {
                 return Ok(left);
             }
-        } else if !is_truthy(&left) {
+        } else if !left.is_truthy() {
             return Ok(left);
         }
 
@@ -209,15 +180,15 @@ impl ExpressionVisitor<ExpressionValue, InterpreterError> for Interpreter {
         &mut self,
         operator: &Token,
         right: &Expression,
-    ) -> Result<ExpressionValue, InterpreterError> {
+    ) -> Result<Object, InterpreterError> {
         let right = self.evaluate(right)?;
 
         match (operator.token_type, &right) {
-            (TokenType::Minus, ExpressionValue::Number(num)) => {
+            (TokenType::Minus, Object::Number(num)) => {
                 check_number_operand(&operator.token_type, &right)?;
-                Ok(ExpressionValue::Number(-num))
+                Ok(Object::Number(-num))
             }
-            (TokenType::Bang, _) => Ok(ExpressionValue::Boolean(!is_truthy(&right))),
+            (TokenType::Bang, _) => Ok(Object::Boolean(!right.is_truthy())),
             _ => Err(InterpreterError::RuntimeError(format!(
                 "Invalid unary expression ({} {})",
                 operator.token_type, right
@@ -230,7 +201,7 @@ impl ExpressionVisitor<ExpressionValue, InterpreterError> for Interpreter {
         }
     }
 
-    fn visit_variable(&mut self, name: &Token) -> Result<ExpressionValue, InterpreterError> {
+    fn visit_variable(&mut self, name: &Token) -> Result<Object, InterpreterError> {
         if let TokenValue::Identifier(name) = &name.value {
             let value = self.environment.get(name)?;
             return Ok(value.clone());
@@ -256,7 +227,7 @@ impl StatementVisitor for Interpreter {
         else_branch: &Option<Box<Statement>>,
     ) -> Result<(), InterpreterError> {
         let condition = self.evaluate(condition)?;
-        if is_truthy(&condition) {
+        if condition.is_truthy() {
             self.execute(then_branch)?;
         } else if let Some(else_branch) = else_branch {
             self.execute(else_branch)?;
@@ -276,7 +247,7 @@ impl StatementVisitor for Interpreter {
         name: &Token,
         initializer: &Option<Expression>,
     ) -> Result<(), InterpreterError> {
-        let mut value = ExpressionValue::Nil;
+        let mut value = Object::Nil;
         if initializer.is_some() {
             value = self.evaluate(initializer.as_ref().unwrap())?;
         }
@@ -294,8 +265,14 @@ impl StatementVisitor for Interpreter {
         condition: &Expression,
         body: &Statement,
     ) -> Result<(), InterpreterError> {
-        while is_truthy(&self.evaluate(condition)?) {
+        let mut value = self.evaluate(condition)?;
+        loop {
+            if !value.is_truthy() {
+                break;
+            }
+
             self.execute(body)?;
+            value = self.evaluate(condition)?;
         }
 
         Ok(())

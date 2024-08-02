@@ -1,5 +1,5 @@
 use crate::{
-    parser::{expression::Expression, expression_value::ExpressionValue},
+    parser::{expression::Expression, object::Object},
     token::Token,
 };
 
@@ -12,7 +12,7 @@ pub trait ExpressionVisitor<T, E> {
         right: &Expression,
     ) -> Result<T, E>;
     fn visit_grouping(&mut self, expression: &Expression) -> Result<T, E>;
-    fn visit_literal(&mut self, value: &ExpressionValue) -> Result<T, E>;
+    fn visit_literal(&mut self, value: &Object) -> Result<T, E>;
     fn visit_logical(
         &mut self,
         left: &Expression,

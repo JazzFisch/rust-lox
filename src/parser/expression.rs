@@ -1,11 +1,9 @@
-use std::fmt::Display;
-
 use crate::{
     token::{token_type::TokenType, token_value::TokenValue, Token},
     visitor::expression_visitor::ExpressionVisitor,
 };
 
-use super::expression_value::ExpressionValue;
+use super::object::Object;
 
 pub enum Expression {
     Assignment {
@@ -21,7 +19,7 @@ pub enum Expression {
         expression: Box<Expression>,
     },
     Literal {
-        value: ExpressionValue,
+        value: Object,
     },
     Logical {
         left: Box<Expression>,
@@ -61,11 +59,11 @@ impl Expression {
 
     pub fn new_literal(token: &Token) -> Self {
         let value = match (&token.token_type, &token.value) {
-            (TokenType::Nil, _) => ExpressionValue::Nil,
-            (TokenType::False, _) => ExpressionValue::Boolean(false),
-            (TokenType::True, _) => ExpressionValue::Boolean(true),
-            (_, TokenValue::Number(num)) => ExpressionValue::Number(*num),
-            (_, TokenValue::String(str)) => ExpressionValue::String(str.clone()),
+            (TokenType::Nil, _) => Object::Nil,
+            (TokenType::False, _) => Object::Boolean(false),
+            (TokenType::True, _) => Object::Boolean(true),
+            (_, TokenValue::Number(num)) => Object::Number(*num),
+            (_, TokenValue::String(str)) => Object::String(str.clone()),
             _ => unreachable!("Invalid token value for literal expression {:?}", token),
         };
 
@@ -110,23 +108,6 @@ impl Expression {
             } => visitor.visit_logical(left, operator, right),
             Expression::Unary { operator, right } => visitor.visit_unary(operator, right),
             Expression::Variable { name } => visitor.visit_variable(name),
-        }
-    }
-}
-
-impl Display for ExpressionValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ExpressionValue::String(str) => write!(f, "{}", str),
-            ExpressionValue::Number(num) => {
-                if f64::trunc(*num) == *num {
-                    write!(f, "{:.1}", num)
-                } else {
-                    write!(f, "{}", num)
-                }
-            }
-            ExpressionValue::Boolean(bool) => write!(f, "{}", bool),
-            ExpressionValue::Nil => write!(f, "nil"),
         }
     }
 }

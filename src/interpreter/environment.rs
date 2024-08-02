@@ -1,7 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 
 use crate::{
-    parser::expression_value::ExpressionValue,
+    parser::object::Object,
     token::{token_value::TokenValue, Token},
 };
 
@@ -9,19 +9,19 @@ use super::interpreter_error::InterpreterError;
 
 #[derive(Debug, Default)]
 pub struct Environment {
-    stack: VecDeque<HashMap<String, ExpressionValue>>,
+    stack: VecDeque<HashMap<String, Object>>,
 }
 
 impl Environment {
     pub fn new() -> Self {
-        let first: HashMap<String, ExpressionValue> = HashMap::new();
+        let first: HashMap<String, Object> = HashMap::new();
 
         Self {
             stack: VecDeque::from(vec![first]),
         }
     }
 
-    pub fn assign(&mut self, name: &Token, value: ExpressionValue) -> Result<(), InterpreterError> {
+    pub fn assign(&mut self, name: &Token, value: Object) -> Result<(), InterpreterError> {
         if let TokenValue::Identifier(name) = &name.value {
             for values in self.stack.iter_mut() {
                 if values.contains_key(name) {
@@ -37,11 +37,11 @@ impl Environment {
         )))
     }
 
-    pub fn define(&mut self, name: String, value: ExpressionValue) {
+    pub fn define(&mut self, name: String, value: Object) {
         self.stack.front_mut().unwrap().insert(name, value);
     }
 
-    pub fn get(&self, name: &str) -> Result<ExpressionValue, InterpreterError> {
+    pub fn get(&self, name: &str) -> Result<Object, InterpreterError> {
         for values in self.stack.iter() {
             if let Some(value) = values.get(name) {
                 return Ok(value.clone());
@@ -60,7 +60,7 @@ impl Environment {
     }
 
     pub fn push_child(&mut self) {
-        let child: HashMap<String, ExpressionValue> = HashMap::new();
+        let child: HashMap<String, Object> = HashMap::new();
         self.stack.push_front(child);
     }
 }

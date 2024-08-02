@@ -1,4 +1,4 @@
-use crate::parser::expression::Expression;
+use crate::parser::{expression::Expression, object::Object};
 
 use super::expression_visitor::ExpressionVisitor;
 
@@ -36,10 +36,7 @@ impl ExpressionVisitor<String, String> for ExpressionPrinter {
         Ok(format!("(group {})", expr))
     }
 
-    fn visit_literal(
-        &mut self,
-        value: &crate::parser::expression_value::ExpressionValue,
-    ) -> Result<String, String> {
+    fn visit_literal(&mut self, value: &Object) -> Result<String, String> {
         Ok(format!("{}", value))
     }
 
