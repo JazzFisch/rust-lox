@@ -5,6 +5,7 @@ use crate::{
 
 use super::object::Object;
 
+#[derive(Clone, Debug)]
 pub enum Expression {
     Assignment {
         name: Token,

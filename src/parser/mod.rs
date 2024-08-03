@@ -1,5 +1,6 @@
 pub mod callable;
 pub mod expression;
+pub mod function;
 pub mod object;
 pub mod parse_error;
 pub mod statement;
@@ -89,7 +90,7 @@ impl Parser {
         Ok(expr)
     }
 
-    fn block_statement(&mut self) -> Result<Vec<Statement>, ParseError> {
+    fn block(&mut self) -> Result<Vec<Statement>, ParseError> {
         let mut statements: Vec<Statement> = Vec::new();
 
         while !self.check(TokenType::RightBrace) && !self.is_at_end() {
@@ -162,7 +163,9 @@ impl Parser {
     }
 
     fn declaration(&mut self) -> Result<Statement, ParseError> {
-        if match_tokens!(self, TokenType::Var) {
+        if match_tokens!(self, TokenType::Fun) {
+            self.function("function")
+        } else if match_tokens!(self, TokenType::Var) {
             self.variable_declaration()
         } else {
             self.statement()
@@ -212,6 +215,44 @@ impl Parser {
         } else {
             Ok(Statement::Expression(expr))
         }
+    }
+
+    fn function(&mut self, kind: &str) -> Result<Statement, ParseError> {
+        let name = self.consume(
+            TokenType::Identifier,
+            format!("Expect {kind} name.").as_str(),
+        )?;
+        let name = name.unwrap().clone();
+
+        let _ = self.consume(
+            TokenType::LeftParen,
+            format!("Expect '(' after {kind} name.").as_str(),
+        );
+
+        let mut parameters = Vec::new();
+        if !self.check(TokenType::RightParen) {
+            loop {
+                if parameters.len() >= 255 {
+                    let token = self.peek().unwrap().clone();
+                    self.error(&token, "Can't have more than 255 parameters.");
+                }
+
+                let param = self.consume(TokenType::Identifier, "Expect parameter name.")?;
+                parameters.push(param.unwrap().clone());
+
+                if !match_tokens!(self, TokenType::Comma) {
+                    break;
+                }
+            }
+        }
+
+        let _ = self.consume(TokenType::RightParen, "Expect ')' after parameters.");
+        let _ = self.consume(
+            TokenType::LeftBrace,
+            format!("Expect '{{' before {kind} body.").as_str(),
+        );
+        let body = self.block()?;
+        Ok(Statement::Function(name, parameters, body))
     }
 
     fn factor(&mut self) -> Result<Expression, ParseError> {
@@ -405,7 +446,7 @@ impl Parser {
         } else if match_tokens!(self, TokenType::While) {
             self.while_statement()
         } else if match_tokens!(self, TokenType::LeftBrace) {
-            let block = self.block_statement()?;
+            let block = self.block()?;
             Ok(Statement::Block(block))
         } else {
             self.expression_statement()

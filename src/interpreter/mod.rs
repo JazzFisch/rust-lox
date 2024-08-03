@@ -8,14 +8,16 @@ use helpers::{check_number_operand, check_number_operands};
 use interpreter_error::InterpreterError;
 
 use crate::{
-    parser::{callable::Clock, expression::Expression, object::Object, statement::Statement},
+    parser::{
+        callable::Clock, expression::Expression, function::Function, object::Object,
+        statement::Statement,
+    },
     token::{token_type::TokenType, token_value::TokenValue, Token},
     visitor::{expression_visitor::ExpressionVisitor, statement_visitor::StatementVisitor},
 };
 
 pub struct Interpreter {
-    environment: Environment,
-    globals: Environment,
+    pub environment: Environment,
 }
 
 impl Interpreter {
@@ -46,7 +48,7 @@ impl Interpreter {
         stmt.accept(self)
     }
 
-    fn execute_block(&mut self, statements: &[Statement]) -> Result<(), InterpreterError> {
+    pub fn execute_block(&mut self, statements: &[Statement]) -> Result<(), InterpreterError> {
         self.environment.push_scope();
 
         let mut result: Result<(), InterpreterError> = Ok(());
@@ -225,6 +227,23 @@ impl StatementVisitor for Interpreter {
 
     fn visit_expression_statement(&mut self, expr: &Expression) -> Result<(), InterpreterError> {
         let _ = self.evaluate(expr)?;
+        Ok(())
+    }
+
+    fn visit_function_statement(
+        &mut self,
+        name: &Token,
+        params: &[Token],
+        body: &[Statement],
+    ) -> Result<(), InterpreterError> {
+        let name = match &name.value {
+            TokenValue::Identifier(name) => name.clone(),
+            _ => unreachable!("Function name must be an identifier"),
+        };
+
+        let function = Function::new(name.clone(), params.to_vec(), body.to_vec());
+        self.environment
+            .define(name.as_str(), Object::Callable(Box::new(function)));
         Ok(())
     }
 

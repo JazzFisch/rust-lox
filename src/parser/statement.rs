@@ -5,9 +5,11 @@ use crate::{
 
 use super::expression::Expression;
 
+#[derive(Clone, Debug)]
 pub enum Statement {
     Block(Vec<Statement>),
     Expression(Expression),
+    Function(Token, Vec<Token>, Vec<Statement>),
     If(Expression, Box<Statement>, Option<Box<Statement>>),
     Print(Expression),
     Variable(Token, Option<Expression>),
@@ -19,6 +21,9 @@ impl Statement {
         match self {
             Statement::Block(statements) => visitor.visit_block_statement(statements),
             Statement::Expression(expr) => visitor.visit_expression_statement(expr),
+            Statement::Function(name, params, body) => {
+                visitor.visit_function_statement(name, params, body)
+            }
             Statement::If(condition, then_branch, else_branch) => {
                 visitor.visit_if_statement(condition, then_branch, else_branch)
             }

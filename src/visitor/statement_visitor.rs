@@ -7,6 +7,12 @@ use crate::{
 pub trait StatementVisitor {
     fn visit_block_statement(&mut self, statements: &[Statement]) -> Result<(), InterpreterError>;
     fn visit_expression_statement(&mut self, expr: &Expression) -> Result<(), InterpreterError>;
+    fn visit_function_statement(
+        &mut self,
+        name: &Token,
+        params: &[Token],
+        body: &[Statement],
+    ) -> Result<(), InterpreterError>;
     fn visit_if_statement(
         &mut self,
         condition: &Expression,

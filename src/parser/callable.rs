@@ -1,5 +1,5 @@
 use dyn_clone::DynClone;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use crate::interpreter::{interpreter_error::InterpreterError, Interpreter};
 
@@ -7,7 +7,7 @@ use super::object::Object;
 
 dyn_clone::clone_trait_object!(Callable);
 
-pub trait Callable: Debug + DynClone {
+pub trait Callable: Debug + Display + DynClone {
     fn arity(&self) -> usize;
     fn call(
         &self,
@@ -35,5 +35,11 @@ impl Callable for Clock {
                 .unwrap()
                 .as_secs_f64(),
         ))
+    }
+}
+
+impl Display for Clock {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<fn clock>")
     }
 }

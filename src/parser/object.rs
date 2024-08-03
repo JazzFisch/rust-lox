@@ -41,15 +41,15 @@ impl Display for Object {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Object::Number(num) => {
-                if f64::trunc(*num) == *num {
-                    write!(f, "{:.1}", num)
+                if num.fract() == 0.0 {
+                    write!(f, "{}", *num as i64)
                 } else {
                     write!(f, "{}", num)
                 }
             }
-            Object::String(s) => write!(f, "{}", s),
-            Object::Boolean(b) => write!(f, "{}", b),
-            Object::Callable(_) => write!(f, "<callable>"),
+            Object::String(str) => write!(f, "{}", str),
+            Object::Boolean(bool) => write!(f, "{}", bool),
+            Object::Callable(callable) => write!(f, "{}", callable),
             Object::Nil => write!(f, "nil"),
         }
     }
