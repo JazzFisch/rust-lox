@@ -7,6 +7,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.68"    # error handling
 bytes = "1.3.0"      # helps manage buffers
+dyn-clone = "1.0.17" # trait for cloning trait objects
 thiserror = "1.0.38" # error handling
 
 [dev-dependencies]

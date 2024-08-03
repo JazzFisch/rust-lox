@@ -1,10 +1,13 @@
 use std::fmt::Display;
 
-#[derive(Clone, Debug)]
+use super::callable::Callable;
+
+#[derive(Debug, Clone)]
 pub enum Object {
     Number(f64),
     String(String),
     Boolean(bool),
+    Callable(Box<dyn Callable>),
     Nil,
 }
 
@@ -33,6 +36,7 @@ impl PartialEq for Object {
     }
 }
 
+// TODO: is there a better way to display a callable
 impl Display for Object {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -45,6 +49,7 @@ impl Display for Object {
             }
             Object::String(s) => write!(f, "{}", s),
             Object::Boolean(b) => write!(f, "{}", b),
+            Object::Callable(_) => write!(f, "<callable>"),
             Object::Nil => write!(f, "nil"),
         }
     }

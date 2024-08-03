@@ -1,3 +1,4 @@
+pub mod callable;
 pub mod expression;
 pub mod object;
 pub mod parse_error;
@@ -101,6 +102,20 @@ impl Parser {
         } else {
             Ok(statements)
         }
+    }
+
+    fn call(&mut self) -> Result<Expression, ParseError> {
+        let mut expr = self.primary()?;
+
+        loop {
+            if match_tokens!(self, TokenType::LeftParen) {
+                expr = self.finish_call(expr)?;
+            } else {
+                break;
+            }
+        }
+
+        Ok(expr)
     }
 
     fn check(&self, token_type: TokenType) -> bool {
@@ -263,6 +278,30 @@ impl Parser {
         Ok(body)
     }
 
+    fn finish_call(&mut self, callee: Expression) -> Result<Expression, ParseError> {
+        let mut arguments: Vec<Expression> = Vec::new();
+
+        if !match_tokens!(self, TokenType::RightParen) {
+            loop {
+                if arguments.len() >= 255 {
+                    let token = self.peek().unwrap().clone();
+                    self.error(&token, "Can't have more than 255 arguments.");
+                }
+
+                arguments.push(self.expression()?);
+
+                if !match_tokens!(self, TokenType::Comma) {
+                    break;
+                }
+            }
+        }
+
+        let paren = self.consume(TokenType::RightParen, "Expect ')' after arguments.")?;
+        let paren = paren.unwrap().clone();
+
+        Ok(Expression::new_call(callee, paren, arguments))
+    }
+
     fn if_statement(&mut self) -> Result<Statement, ParseError> {
         let _ = self.consume(TokenType::LeftParen, "Expect '(' after 'if'.");
         let condition = self.expression()?;
@@ -418,7 +457,7 @@ impl Parser {
             return Ok(expr);
         }
 
-        self.primary()
+        self.call()
     }
 
     // var <name> [ = <expression> ];

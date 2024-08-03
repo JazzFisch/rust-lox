@@ -31,6 +31,24 @@ impl ExpressionVisitor<String, String> for ExpressionPrinter {
         Ok(format!("({} {} {})", operator.token_type, left, right))
     }
 
+    fn visit_call(
+        &mut self,
+        callee: &Expression,
+        paren: &crate::token::Token,
+        arguments: &[Expression],
+    ) -> Result<String, String> {
+        let mut args = String::new();
+        for arg in arguments {
+            args.push_str(&arg.accept(self)?);
+        }
+        Ok(format!(
+            "(call {} {} {})",
+            callee.accept(self)?,
+            paren.token_type,
+            args
+        ))
+    }
+
     fn visit_grouping(&mut self, expression: &Expression) -> Result<String, String> {
         let expr = expression.accept(self)?;
         Ok(format!("(group {})", expr))

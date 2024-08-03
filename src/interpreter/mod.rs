@@ -1,51 +1,32 @@
 pub mod environment;
 pub mod interpreter_error;
 
-use std::{cell::RefCell, rc::Rc};
+mod helpers;
 
 use environment::Environment;
+use helpers::{check_number_operand, check_number_operands};
 use interpreter_error::InterpreterError;
 
 use crate::{
-    parser::{expression::Expression, object::Object, statement::Statement},
+    parser::{callable::Clock, expression::Expression, object::Object, statement::Statement},
     token::{token_type::TokenType, token_value::TokenValue, Token},
     visitor::{expression_visitor::ExpressionVisitor, statement_visitor::StatementVisitor},
 };
 
 pub struct Interpreter {
-    environment: Rc<RefCell<Environment>>,
-}
-
-fn check_number_operand(operator: &TokenType, operand: &Object) -> Result<(), InterpreterError> {
-    if let Object::Number(_) = operand {
-        Ok(())
-    } else {
-        Err(InterpreterError::RuntimeError(format!(
-            "Operand must be a number for operator ({} {})",
-            operator, operand
-        )))
-    }
-}
-
-fn check_number_operands<'a>(
-    left: &'a Object,
-    operator: &TokenType,
-    right: &'a Object,
-) -> Result<(f64, f64), InterpreterError> {
-    if let (Object::Number(left), Object::Number(right)) = (left, right) {
-        Ok((*left, *right))
-    } else {
-        Err(InterpreterError::RuntimeError(format!(
-            "Operands must be numbers for operator ({} {} {})",
-            left, operator, right
-        )))
-    }
+    environment: Environment,
+    globals: Environment,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
-        Interpreter {
-            environment: Rc::new(RefCell::new(Environment::new())),
+        let mut globals = Environment::new();
+        globals.define("clock", Object::Callable(Box::new(Clock {})));
+        let environment = Environment::new_from_parent(&mut globals.clone());
+
+        Self {
+            environment,
+            globals,
         }
     }
 
@@ -65,13 +46,8 @@ impl Interpreter {
         stmt.accept(self)
     }
 
-    fn execute_block(
-        &mut self,
-        statements: &[Statement],
-        environment: Rc<RefCell<Environment>>,
-    ) -> Result<(), InterpreterError> {
-        let current = self.environment.clone();
-        self.environment = environment;
+    fn execute_block(&mut self, statements: &[Statement]) -> Result<(), InterpreterError> {
+        self.environment.push_scope();
 
         let mut result: Result<(), InterpreterError> = Ok(());
         for statement in statements {
@@ -81,7 +57,7 @@ impl Interpreter {
             }
         }
 
-        self.environment = current;
+        self.environment.pop_scope();
         result
     }
 }
@@ -93,7 +69,7 @@ impl ExpressionVisitor<Object, InterpreterError> for Interpreter {
         expression: &Expression,
     ) -> Result<Object, InterpreterError> {
         let value = self.evaluate(expression)?;
-        self.environment.borrow_mut().assign(name, value.clone())?;
+        self.environment.assign(name, value.clone())?;
         Ok(value)
     }
 
@@ -155,6 +131,36 @@ impl ExpressionVisitor<Object, InterpreterError> for Interpreter {
         }
     }
 
+    fn visit_call(
+        &mut self,
+        callee: &Expression,
+        _: &Token,
+        arguments: &[Expression],
+    ) -> Result<Object, InterpreterError> {
+        let callee = self.evaluate(callee)?;
+
+        let mut args = Vec::new();
+        for argument in arguments {
+            let arg = self.evaluate(argument)?;
+            args.push(arg);
+        }
+
+        if let Object::Callable(callable) = callee {
+            if args.len() != callable.arity() {
+                return Err(InterpreterError::RuntimeError(format!(
+                    "Expected {} arguments but got {}.",
+                    callable.arity(),
+                    args.len()
+                )));
+            }
+            return callable.call(self, args);
+        }
+
+        Err(InterpreterError::RuntimeError(
+            "Can only call functions and classes.".to_string(),
+        ))
+    }
+
     fn visit_grouping(&mut self, expression: &Expression) -> Result<Object, InterpreterError> {
         let value = self.evaluate(expression)?;
         Ok(value)
@@ -200,17 +206,12 @@ impl ExpressionVisitor<Object, InterpreterError> for Interpreter {
                 "Invalid unary expression ({} {})",
                 operator.token_type, right
             ))),
-            // _ => unreachable!(
-            //     "Invalid unary expression ({} {})",
-            //     expr.operator().token_type,
-            //     right
-            // ),
         }
     }
 
     fn visit_variable(&mut self, name: &Token) -> Result<Object, InterpreterError> {
         if let TokenValue::Identifier(name) = &name.value {
-            let value = self.environment.borrow().get(name)?;
+            let value = self.environment.get(name)?;
             return Ok(value.clone());
         }
         unreachable!("Variable expression must have a string name");
@@ -219,10 +220,7 @@ impl ExpressionVisitor<Object, InterpreterError> for Interpreter {
 
 impl StatementVisitor for Interpreter {
     fn visit_block_statement(&mut self, statements: &[Statement]) -> Result<(), InterpreterError> {
-        let environment = Rc::new(RefCell::new(Environment::new_with_parent(
-            self.environment.clone(),
-        )));
-        self.execute_block(statements, environment)
+        self.execute_block(statements)
     }
 
     fn visit_expression_statement(&mut self, expr: &Expression) -> Result<(), InterpreterError> {
@@ -264,7 +262,7 @@ impl StatementVisitor for Interpreter {
 
         if let TokenValue::Identifier(name) = &name.value {
             let name = name.clone();
-            self.environment.borrow_mut().define(name, value);
+            self.environment.define(name.as_str(), value);
         }
 
         Ok(())
@@ -286,5 +284,11 @@ impl StatementVisitor for Interpreter {
         }
 
         Ok(())
+    }
+}
+
+impl Default for Interpreter {
+    fn default() -> Self {
+        Self::new()
     }
 }

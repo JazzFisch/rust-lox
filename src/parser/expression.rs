@@ -15,6 +15,11 @@ pub enum Expression {
         operator: Token,
         right: Box<Expression>,
     },
+    Call {
+        callee: Box<Expression>,
+        paren: Token,
+        arguments: Vec<Expression>,
+    },
     Grouping {
         expression: Box<Expression>,
     },
@@ -48,6 +53,14 @@ impl Expression {
             left: Box::new(left),
             operator: operand,
             right: Box::new(right),
+        }
+    }
+
+    pub fn new_call(callee: Expression, paren: Token, arguments: Vec<Expression>) -> Self {
+        Expression::Call {
+            callee: Box::new(callee),
+            paren,
+            arguments,
         }
     }
 
@@ -99,6 +112,11 @@ impl Expression {
                 operator,
                 right,
             } => visitor.visit_binary(left, operator, right),
+            Expression::Call {
+                callee,
+                paren,
+                arguments,
+            } => visitor.visit_call(callee, paren, arguments),
             Expression::Grouping { expression } => visitor.visit_grouping(expression),
             Expression::Literal { value } => visitor.visit_literal(value),
             Expression::Logical {
