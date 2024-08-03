@@ -281,7 +281,7 @@ impl Parser {
     fn finish_call(&mut self, callee: Expression) -> Result<Expression, ParseError> {
         let mut arguments: Vec<Expression> = Vec::new();
 
-        if !match_tokens!(self, TokenType::RightParen) {
+        if !self.check(TokenType::RightParen) {
             loop {
                 if arguments.len() >= 255 {
                     let token = self.peek().unwrap().clone();

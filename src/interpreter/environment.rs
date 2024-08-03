@@ -14,7 +14,7 @@ pub struct Environment {
 
 impl Environment {
     pub fn new() -> Self {
-        let stack = VecDeque::new();
+        let stack = VecDeque::from(vec![HashMap::new()]);
         Environment::new_from_parent(&mut Self { stack })
     }
 
@@ -41,10 +41,9 @@ impl Environment {
     }
 
     pub fn define(&mut self, name: &str, value: Object) {
-        self.stack
-            .front_mut()
-            .unwrap()
-            .insert(name.to_owned(), value);
+        let front = self.stack.front_mut();
+        let front = front.unwrap();
+        front.insert(name.to_owned(), value);
     }
 
     pub fn get(&self, name: &str) -> Result<Object, InterpreterError> {
