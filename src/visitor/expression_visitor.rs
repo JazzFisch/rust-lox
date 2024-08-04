@@ -11,12 +11,7 @@ pub trait ExpressionVisitor<T, E> {
         operator: &Token,
         right: &Expression,
     ) -> Result<T, E>;
-    fn visit_call(
-        &mut self,
-        callee: &Expression,
-        paren: &Token,
-        arguments: &[Expression],
-    ) -> Result<T, E>;
+    fn visit_call(&mut self, callee: &Expression, arguments: &[Expression]) -> Result<T, E>;
     fn visit_grouping(&mut self, expression: &Expression) -> Result<T, E>;
     fn visit_literal(&mut self, value: &Object) -> Result<T, E>;
     fn visit_logical(

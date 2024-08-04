@@ -3,6 +3,8 @@ pub mod interpreter_error;
 
 mod helpers;
 
+use std::{cell::RefCell, rc::Rc};
+
 use environment::Environment;
 use helpers::{check_number_operand, check_number_operands};
 use interpreter_error::InterpreterError;
@@ -17,18 +19,22 @@ use crate::{
 };
 
 pub struct Interpreter {
-    pub environment: Environment,
+    pub globals: Rc<RefCell<Environment>>,
+    pub environment: Rc<RefCell<environment::Environment>>,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
-        let mut globals = Environment::new();
-        globals.define("clock", Object::Callable(Box::new(Clock {})));
-        let environment = Environment::new_from_parent(&mut globals.clone());
+        let globals = Rc::new(RefCell::new(Environment::default()));
+
+        // register native functions
+        globals
+            .borrow_mut()
+            .define("clock", Object::Callable(Box::new(Clock {})));
 
         Self {
-            environment,
-            globals,
+            globals: Rc::clone(&globals),
+            environment: Rc::clone(&globals),
         }
     }
 
@@ -48,8 +54,13 @@ impl Interpreter {
         stmt.accept(self)
     }
 
-    pub fn execute_block(&mut self, statements: &[Statement]) -> Result<(), InterpreterError> {
-        self.environment.push_scope();
+    pub fn execute_block(
+        &mut self,
+        statements: &[Statement],
+        environment: Rc<RefCell<Environment>>,
+    ) -> Result<(), InterpreterError> {
+        let current = self.environment.clone();
+        self.environment = environment;
 
         let mut result: Result<(), InterpreterError> = Ok(());
         for statement in statements {
@@ -59,7 +70,7 @@ impl Interpreter {
             }
         }
 
-        self.environment.pop_scope();
+        self.environment = current;
         result
     }
 }
@@ -70,9 +81,13 @@ impl ExpressionVisitor<Object, InterpreterError> for Interpreter {
         name: &Token,
         expression: &Expression,
     ) -> Result<Object, InterpreterError> {
-        let value = self.evaluate(expression)?;
-        self.environment.assign(name, value.clone())?;
-        Ok(value)
+        if let TokenValue::Identifier(name) = &name.value {
+            let value = self.evaluate(expression)?;
+            self.environment.borrow_mut().assign(name, value.clone())?;
+            return Ok(value);
+        }
+
+        unreachable!("Assignment name must be an identifier");
     }
 
     fn visit_binary(
@@ -85,7 +100,7 @@ impl ExpressionVisitor<Object, InterpreterError> for Interpreter {
         let right = self.evaluate(right)?;
 
         // special case for string concatenation
-        if let (Object::String(left), TokenType::Plus, Object::Number(right)) =
+        if let (Object::String(left), TokenType::Plus, Object::String(right)) =
             (&left, operator.token_type, &right)
         {
             return Ok(Object::String(format!("{}{}", left, right)));
@@ -136,7 +151,6 @@ impl ExpressionVisitor<Object, InterpreterError> for Interpreter {
     fn visit_call(
         &mut self,
         callee: &Expression,
-        _: &Token,
         arguments: &[Expression],
     ) -> Result<Object, InterpreterError> {
         let callee = self.evaluate(callee)?;
@@ -213,7 +227,7 @@ impl ExpressionVisitor<Object, InterpreterError> for Interpreter {
 
     fn visit_variable(&mut self, name: &Token) -> Result<Object, InterpreterError> {
         if let TokenValue::Identifier(name) = &name.value {
-            let value = self.environment.get(name)?;
+            let value = self.environment.borrow().get(name)?;
             return Ok(value.clone());
         }
         unreachable!("Variable expression must have a string name");
@@ -222,7 +236,10 @@ impl ExpressionVisitor<Object, InterpreterError> for Interpreter {
 
 impl StatementVisitor for Interpreter {
     fn visit_block_statement(&mut self, statements: &[Statement]) -> Result<(), InterpreterError> {
-        self.execute_block(statements)
+        let current = Some(Rc::clone(&self.environment));
+        let environment = Rc::new(RefCell::new(Environment::new(current)));
+
+        self.execute_block(statements, environment)
     }
 
     fn visit_expression_statement(&mut self, expr: &Expression) -> Result<(), InterpreterError> {
@@ -243,6 +260,7 @@ impl StatementVisitor for Interpreter {
 
         let function = Function::new(name.clone(), params.to_vec(), body.to_vec());
         self.environment
+            .borrow_mut()
             .define(name.as_str(), Object::Callable(Box::new(function)));
         Ok(())
     }
@@ -269,6 +287,17 @@ impl StatementVisitor for Interpreter {
         Ok(())
     }
 
+    fn visit_return_statement(
+        &mut self,
+        value: &Option<Expression>,
+    ) -> Result<(), InterpreterError> {
+        let mut return_value = Object::Nil;
+        if let Some(value) = value {
+            return_value = self.evaluate(value)?;
+        }
+        Err(InterpreterError::Return(return_value))
+    }
+
     fn visit_variable_statement(
         &mut self,
         name: &Token,
@@ -281,7 +310,7 @@ impl StatementVisitor for Interpreter {
 
         if let TokenValue::Identifier(name) = &name.value {
             let name = name.clone();
-            self.environment.define(name.as_str(), value);
+            self.environment.borrow_mut().define(name.as_str(), value);
         }
 
         Ok(())

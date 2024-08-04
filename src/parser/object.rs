@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{cmp::Ordering, fmt::Display};
 
 use super::callable::Callable;
 
@@ -19,6 +19,10 @@ impl Object {
             _ => true,
         }
     }
+
+    pub fn is_callable(&self) -> bool {
+        matches!(self, Object::Callable(_))
+    }
 }
 
 impl PartialEq for Object {
@@ -32,6 +36,35 @@ impl PartialEq for Object {
             (Self::Boolean(left), Self::Boolean(right)) => left == right,
             // this might need to just be false
             _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
+    }
+}
+
+impl PartialOrd for Object {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (Self::Nil, Self::Nil) => Some(Ordering::Equal),
+            (Self::Number(left), Self::Number(right)) => {
+                if left < right {
+                    Some(Ordering::Less)
+                } else if left > right {
+                    Some(Ordering::Greater)
+                } else {
+                    Some(Ordering::Equal)
+                }
+            }
+            (Self::String(left), Self::String(right)) => match left.cmp(right) {
+                Ordering::Less => Some(Ordering::Less),
+                Ordering::Greater => Some(Ordering::Greater),
+                Ordering::Equal => Some(Ordering::Equal),
+            },
+            (Self::Boolean(left), Self::Boolean(right)) => match left.cmp(right) {
+                Ordering::Less => Some(Ordering::Less),
+                Ordering::Greater => Some(Ordering::Greater),
+                Ordering::Equal => Some(Ordering::Equal),
+            },
+            // this might need to just be false
+            _ => None,
         }
     }
 }

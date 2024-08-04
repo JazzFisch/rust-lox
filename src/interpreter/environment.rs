@@ -1,70 +1,78 @@
-use std::collections::{HashMap, VecDeque};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::{
-    parser::object::Object,
-    token::{token_value::TokenValue, Token},
-};
+use crate::parser::object::Object;
 
 use super::interpreter_error::InterpreterError;
 
-#[derive(Clone, Debug)]
 pub struct Environment {
-    stack: VecDeque<HashMap<String, Object>>,
+    parent: Option<Rc<RefCell<Environment>>>,
+    values: HashMap<String, Object>,
 }
 
 impl Environment {
-    pub fn new() -> Self {
-        let stack = VecDeque::from(vec![HashMap::new()]);
-        Environment::new_from_parent(&mut Self { stack })
+    pub fn new(parent: Option<Rc<RefCell<Environment>>>) -> Self {
+        Environment {
+            parent,
+            values: HashMap::new(),
+        }
     }
 
-    pub fn new_from_parent(parent: &mut Environment) -> Self {
-        let mut stack = VecDeque::new();
-        stack.append(&mut parent.stack);
-        Self { stack }
+    pub fn new_with_parent(parent: Rc<RefCell<Environment>>) -> Self {
+        Environment {
+            parent: Some(parent),
+            values: HashMap::new(),
+        }
     }
 
-    pub fn assign(&mut self, name_token: &Token, value: Object) -> Result<(), InterpreterError> {
-        if let TokenValue::Identifier(name) = &name_token.value {
-            for scope in self.stack.iter_mut() {
-                if scope.contains_key(name) {
-                    scope.insert(name.clone(), value);
-                    return Ok(());
-                }
-            }
+    pub fn assign(&mut self, name: &str, value: Object) -> Result<(), InterpreterError> {
+        if self.values.contains_key(name) {
+            self.values.insert(name.to_owned(), value);
+            return Ok(());
         }
 
-        Err(InterpreterError::RuntimeError(format!(
-            "Undefined variable '{}'.",
-            name_token.value
-        )))
+        if let Some(parent) = &self.parent {
+            parent.borrow_mut().assign(name, value)
+        } else {
+            Err(InterpreterError::RuntimeError(format!(
+                "Undefined variable '{}'.",
+                name
+            )))
+        }
     }
 
     pub fn define(&mut self, name: &str, value: Object) {
-        let front = self.stack.front_mut();
-        let front = front.unwrap();
-        front.insert(name.to_owned(), value);
+        self.values.insert(name.to_owned(), value);
     }
 
     pub fn get(&self, name: &str) -> Result<Object, InterpreterError> {
-        for scope in self.stack.iter() {
-            if let Some(value) = scope.get(name) {
-                return Ok(value.clone());
-            }
+        if let Some(value) = self.values.get(name) {
+            return Ok(value.clone());
         }
 
-        Err(InterpreterError::UndefinedVariable(name.to_string()))
+        if let Some(parent) = &self.parent {
+            parent.borrow().get(name)
+        } else {
+            Err(InterpreterError::UndefinedVariable(name.to_owned()))
+        }
     }
 
-    pub fn pop_scope(&mut self) {
-        if self.stack.len() == 1 {
-            panic!("Cannot pop the global scope.");
+    pub fn print(&self) {
+        self.print_internal(0);
+    }
+
+    fn print_internal(&self, depth: usize) {
+        if let Some(parent) = &self.parent {
+            parent.borrow().print_internal(depth + 1);
         }
 
-        self.stack.pop_front();
+        for (key, value) in &self.values {
+            println!("{:indent$}{}: {}", "", key, value, indent = depth * 2);
+        }
     }
+}
 
-    pub fn push_scope(&mut self) {
-        self.stack.push_front(HashMap::new());
+impl Default for Environment {
+    fn default() -> Self {
+        Self::new(None)
     }
 }

@@ -20,6 +20,10 @@ pub trait StatementVisitor {
         else_branch: &Option<Box<Statement>>,
     ) -> Result<(), InterpreterError>;
     fn visit_print_statement(&mut self, print: &Expression) -> Result<(), InterpreterError>;
+    fn visit_return_statement(
+        &mut self,
+        value: &Option<Expression>,
+    ) -> Result<(), InterpreterError>;
     fn visit_variable_statement(
         &mut self,
         name: &Token,

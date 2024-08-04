@@ -1,7 +1,11 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    cell::RefCell,
+    fmt::{Display, Formatter},
+    rc::Rc,
+};
 
 use crate::{
-    interpreter::{interpreter_error::InterpreterError, Interpreter},
+    interpreter::{environment, interpreter_error::InterpreterError, Interpreter},
     token::{token_value::TokenValue, Token},
 };
 
@@ -16,7 +20,7 @@ pub struct Function {
 
 impl Function {
     pub fn new(name: String, params: Vec<Token>, body: Vec<Statement>) -> Self {
-        return Self { name, params, body };
+        Self { name, params, body }
     }
 }
 
@@ -30,19 +34,25 @@ impl Callable for Function {
         interpreter: &mut Interpreter,
         arguments: Vec<Object>,
     ) -> Result<Object, InterpreterError> {
-        interpreter.environment.push_scope();
+        let environment = Rc::new(RefCell::new(environment::Environment::new(Some(
+            Rc::clone(&interpreter.environment),
+        ))));
 
         for (param, argument) in self.params.iter().zip(arguments.iter()) {
             if let TokenValue::Identifier(name) = &param.value {
-                interpreter
-                    .environment
+                environment
+                    .borrow_mut()
                     .define(name.as_str(), argument.clone());
             }
         }
 
-        interpreter.execute_block(&self.body)?;
+        if let Err(execute_return) = interpreter.execute_block(&self.body, environment) {
+            if let InterpreterError::Return(value) = execute_return {
+                return Ok(value);
+            }
+            return Err(execute_return);
+        }
 
-        interpreter.environment.pop_scope();
         Ok(Object::Nil)
     }
 }

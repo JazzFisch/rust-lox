@@ -46,8 +46,9 @@ fn main() -> Result<()> {
     let command = handle_args();
     if command.is_err() {
         let error = command.err().unwrap();
-        writeln!(io::stderr(), "{}", error)?;
-        return Err(error.into());
+        let message = format!("{}", error);
+        writeln!(io::stderr(), "{}", message)?;
+        return Err(anyhow::Error::msg(message));
     }
 
     let error = match command.ok().unwrap() {
@@ -80,6 +81,7 @@ fn handle_args() -> Result<InterpreterCommand, InterpreterError> {
     //let args: Vec<String> = vec!["".into(), "tokenize".into(), "test.lox".into()];
     //let args: Vec<String> = vec!["".into(), "parse".into(), "test.lox".into()];
     //let args: Vec<String> = vec!["".into(), "interpret".into(), "test.lox".into()];
+    //let args: Vec<String> = vec!["".into(), "interpret".into(), "test2.lox".into()];
 
     if args.len() < 3 {
         let path = Path::new(&args[0]);

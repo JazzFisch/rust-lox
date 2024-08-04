@@ -12,6 +12,7 @@ pub enum Statement {
     Function(Token, Vec<Token>, Vec<Statement>),
     If(Expression, Box<Statement>, Option<Box<Statement>>),
     Print(Expression),
+    Return(Option<Expression>),
     Variable(Token, Option<Expression>),
     While(Expression, Box<Statement>),
 }
@@ -28,6 +29,7 @@ impl Statement {
                 visitor.visit_if_statement(condition, then_branch, else_branch)
             }
             Statement::Print(expr) => visitor.visit_print_statement(expr),
+            Statement::Return(expr) => visitor.visit_return_statement(expr),
             Statement::Variable(name, expr) => visitor.visit_variable_statement(name, expr),
             Statement::While(condition, body) => visitor.visit_while_statement(condition, body),
         }

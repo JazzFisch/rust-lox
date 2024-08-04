@@ -337,10 +337,9 @@ impl Parser {
             }
         }
 
-        let paren = self.consume(TokenType::RightParen, "Expect ')' after arguments.")?;
-        let paren = paren.unwrap().clone();
+        let _ = self.consume(TokenType::RightParen, "Expect ')' after arguments.")?;
 
-        Ok(Expression::new_call(callee, paren, arguments))
+        Ok(Expression::new_call(callee, arguments))
     }
 
     fn if_statement(&mut self) -> Result<Statement, ParseError> {
@@ -436,6 +435,19 @@ impl Parser {
         eprintln!("[line {line}] Error{location}: {message}");
     }
 
+    fn return_statement(&mut self) -> Result<Statement, ParseError> {
+        let _ = self.previous().unwrap().clone();
+
+        let mut value = None;
+        if !match_tokens!(self, TokenType::Semicolon) {
+            let result = self.expression();
+            value = Some(result?);
+        }
+
+        let _ = self.consume(TokenType::Semicolon, "Expect ';' after return value.");
+        Ok(Statement::Return(value))
+    }
+
     fn statement(&mut self) -> Result<Statement, ParseError> {
         if match_tokens!(self, TokenType::For) {
             self.for_statement()
@@ -443,6 +455,8 @@ impl Parser {
             self.if_statement()
         } else if match_tokens!(self, TokenType::Print) {
             self.print_statement()
+        } else if match_tokens!(self, TokenType::Return) {
+            self.return_statement()
         } else if match_tokens!(self, TokenType::While) {
             self.while_statement()
         } else if match_tokens!(self, TokenType::LeftBrace) {
