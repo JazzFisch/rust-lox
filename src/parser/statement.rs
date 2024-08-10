@@ -3,7 +3,7 @@ use crate::{
     visitor::statement_visitor::StatementVisitor,
 };
 
-use super::expression::Expression;
+use super::{expression::Expression, object::Object};
 
 #[derive(Clone, Debug)]
 pub enum Statement {
@@ -18,7 +18,10 @@ pub enum Statement {
 }
 
 impl Statement {
-    pub fn accept(&self, visitor: &mut dyn StatementVisitor) -> Result<(), InterpreterError> {
+    pub fn accept(
+        &self,
+        visitor: &mut dyn StatementVisitor,
+    ) -> Result<Option<Object>, InterpreterError> {
         match self {
             Statement::Block(statements) => visitor.visit_block_statement(statements),
             Statement::Expression(expr) => visitor.visit_expression_statement(expr),

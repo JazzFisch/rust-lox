@@ -9,7 +9,10 @@ use expression::Expression;
 use parse_error::ParseError;
 use statement::Statement;
 
-use crate::token::{token_type::TokenType, token_value::TokenValue, Token};
+use crate::{
+    error_bag::ErrorBag,
+    token::{token_type::TokenType, Token},
+};
 
 macro_rules! match_tokens {
     ($self:expr, $($token:expr),* $(,)?) => {{
@@ -24,18 +27,18 @@ macro_rules! match_tokens {
     }};
 }
 
-pub struct Parser {
+pub struct Parser<'a> {
     tokens: Vec<Token>,
     current: usize,
-    failed: bool,
+    errors: &'a mut ErrorBag,
 }
 
-impl Parser {
-    pub fn new(tokens: Vec<Token>) -> Self {
+impl<'a> Parser<'a> {
+    pub fn new(errors: &'a mut ErrorBag, tokens: Vec<Token>) -> Self {
         Parser {
             tokens,
             current: 0,
-            failed: false,
+            errors,
         }
     }
 
@@ -84,7 +87,9 @@ impl Parser {
             // We report an error if the left-hand side isn’t a valid assignment target,
             // but we don’t throw it because the parser isn’t in a confused state where
             // we need to go into panic mode and synchronize.
-            let _ = self.error(&equals, "Invalid assignment target.");
+            let _ = self
+                .errors
+                .parse_error(&equals, "Invalid assignment target.");
         }
 
         Ok(expr)
@@ -159,7 +164,7 @@ impl Parser {
             Some(token) => token.clone(),
             None => Token::new_eof(0),
         };
-        Err(self.error(&token, message))
+        Err(self.errors.parse_error(&token, message))
     }
 
     fn declaration(&mut self) -> Result<Statement, ParseError> {
@@ -170,25 +175,6 @@ impl Parser {
         } else {
             self.statement()
         }
-    }
-
-    fn error(&mut self, token: &Token, message: &str) -> ParseError {
-        match (&token.token_type, &token.value) {
-            (TokenType::Eof, _) => self.report(token.line, " at end", message),
-            (_, TokenValue::None) => self.report(
-                token.line,
-                format!(" at '{}'", token.token_type).as_str(),
-                message,
-            ),
-            _ => self.report(
-                token.line,
-                format!(" at '{}'", token.value).as_str(),
-                message,
-            ),
-        }
-
-        self.failed = true;
-        ParseError::Error(token.token_type, message.to_string())
     }
 
     fn equality(&mut self) -> Result<Expression, ParseError> {
@@ -234,7 +220,8 @@ impl Parser {
             loop {
                 if parameters.len() >= 255 {
                     let token = self.peek().unwrap().clone();
-                    self.error(&token, "Can't have more than 255 parameters.");
+                    self.errors
+                        .parse_error(&token, "Can't have more than 255 parameters.");
                 }
 
                 let param = self.consume(TokenType::Identifier, "Expect parameter name.")?;
@@ -326,7 +313,8 @@ impl Parser {
             loop {
                 if arguments.len() >= 255 {
                     let token = self.peek().unwrap().clone();
-                    self.error(&token, "Can't have more than 255 arguments.");
+                    self.errors
+                        .parse_error(&token, "Can't have more than 255 arguments.");
                 }
 
                 arguments.push(self.expression()?);
@@ -419,7 +407,7 @@ impl Parser {
             Some(token) => token.clone(),
             None => Token::new_eof(0),
         };
-        Err(self.error(&token, "Expect expression."))
+        Err(self.errors.parse_error(&token, "Expect expression."))
     }
 
     fn print_statement(&mut self) -> Result<Statement, ParseError> {
@@ -429,10 +417,6 @@ impl Parser {
         } else {
             Ok(Statement::Print(expr))
         }
-    }
-
-    fn report(&self, line: usize, location: &str, message: &str) {
-        eprintln!("[line {line}] Error{location}: {message}");
     }
 
     fn return_statement(&mut self) -> Result<Statement, ParseError> {

@@ -46,14 +46,11 @@ impl Callable for Function {
             }
         }
 
-        if let Err(execute_return) = interpreter.execute_block(&self.body, environment) {
-            if let InterpreterError::Return(value) = execute_return {
-                return Ok(value);
-            }
-            return Err(execute_return);
+        let result = interpreter.execute_block(&self.body, environment)?;
+        match result {
+            Some(result) => Ok(result),
+            None => Ok(Object::Nil),
         }
-
-        Ok(Object::Nil)
     }
 }
 

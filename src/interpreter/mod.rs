@@ -50,7 +50,7 @@ impl Interpreter {
         Ok(expr)
     }
 
-    fn execute(&mut self, stmt: &Statement) -> Result<(), InterpreterError> {
+    fn execute(&mut self, stmt: &Statement) -> Result<Option<Object>, InterpreterError> {
         stmt.accept(self)
     }
 
@@ -58,15 +58,22 @@ impl Interpreter {
         &mut self,
         statements: &[Statement],
         environment: Rc<RefCell<Environment>>,
-    ) -> Result<(), InterpreterError> {
+    ) -> Result<Option<Object>, InterpreterError> {
         let current = self.environment.clone();
         self.environment = environment;
 
-        let mut result: Result<(), InterpreterError> = Ok(());
+        let mut result: Result<Option<Object>, InterpreterError> = Ok(None);
         for statement in statements {
-            if let Err(err) = self.execute(statement) {
-                result = Err(err);
-                break;
+            match self.execute(statement) {
+                Ok(Some(value)) => {
+                    result = Ok(Some(value));
+                    break;
+                }
+                Ok(None) => {}
+                Err(err) => {
+                    result = Err(err);
+                    break;
+                }
             }
         }
 
@@ -235,16 +242,23 @@ impl ExpressionVisitor<Object, InterpreterError> for Interpreter {
 }
 
 impl StatementVisitor for Interpreter {
-    fn visit_block_statement(&mut self, statements: &[Statement]) -> Result<(), InterpreterError> {
+    fn visit_block_statement(
+        &mut self,
+        statements: &[Statement],
+    ) -> Result<Option<Object>, InterpreterError> {
         let current = Some(Rc::clone(&self.environment));
         let environment = Rc::new(RefCell::new(Environment::new(current)));
 
-        self.execute_block(statements, environment)
+        let result = self.execute_block(statements, environment)?;
+        Ok(result)
     }
 
-    fn visit_expression_statement(&mut self, expr: &Expression) -> Result<(), InterpreterError> {
+    fn visit_expression_statement(
+        &mut self,
+        expr: &Expression,
+    ) -> Result<Option<Object>, InterpreterError> {
         let _ = self.evaluate(expr)?;
-        Ok(())
+        Ok(None)
     }
 
     fn visit_function_statement(
@@ -252,7 +266,7 @@ impl StatementVisitor for Interpreter {
         name: &Token,
         params: &[Token],
         body: &[Statement],
-    ) -> Result<(), InterpreterError> {
+    ) -> Result<Option<Object>, InterpreterError> {
         let name = match &name.value {
             TokenValue::Identifier(name) => name.clone(),
             _ => unreachable!("Function name must be an identifier"),
@@ -262,7 +276,8 @@ impl StatementVisitor for Interpreter {
         self.environment
             .borrow_mut()
             .define(name.as_str(), Object::Callable(Box::new(function)));
-        Ok(())
+
+        Ok(None)
     }
 
     fn visit_if_statement(
@@ -270,39 +285,44 @@ impl StatementVisitor for Interpreter {
         condition: &Expression,
         then_branch: &Statement,
         else_branch: &Option<Box<Statement>>,
-    ) -> Result<(), InterpreterError> {
+    ) -> Result<Option<Object>, InterpreterError> {
         let condition = self.evaluate(condition)?;
+        let mut result: Option<Object> = None;
+
         if condition.is_truthy() {
-            self.execute(then_branch)?;
+            result = self.execute(then_branch)?;
         } else if let Some(else_branch) = else_branch {
-            self.execute(else_branch)?;
+            result = self.execute(else_branch)?;
         }
 
-        Ok(())
+        Ok(result)
     }
 
-    fn visit_print_statement(&mut self, expr: &Expression) -> Result<(), InterpreterError> {
+    fn visit_print_statement(
+        &mut self,
+        expr: &Expression,
+    ) -> Result<Option<Object>, InterpreterError> {
         let value = self.evaluate(expr)?;
         println!("{}", value);
-        Ok(())
+        Ok(None)
     }
 
     fn visit_return_statement(
         &mut self,
         value: &Option<Expression>,
-    ) -> Result<(), InterpreterError> {
-        let mut return_value = Object::Nil;
-        if let Some(value) = value {
-            return_value = self.evaluate(value)?;
+    ) -> Result<Option<Object>, InterpreterError> {
+        let mut result = Object::Nil;
+        if let Some(value_expression) = value {
+            result = self.evaluate(value_expression)?;
         }
-        Err(InterpreterError::Return(return_value))
+        Ok(Some(result))
     }
 
     fn visit_variable_statement(
         &mut self,
         name: &Token,
         initializer: &Option<Expression>,
-    ) -> Result<(), InterpreterError> {
+    ) -> Result<Option<Object>, InterpreterError> {
         let mut value = Object::Nil;
         if initializer.is_some() {
             value = self.evaluate(initializer.as_ref().unwrap())?;
@@ -313,25 +333,28 @@ impl StatementVisitor for Interpreter {
             self.environment.borrow_mut().define(name.as_str(), value);
         }
 
-        Ok(())
+        Ok(None)
     }
 
     fn visit_while_statement(
         &mut self,
         condition: &Expression,
         body: &Statement,
-    ) -> Result<(), InterpreterError> {
+    ) -> Result<Option<Object>, InterpreterError> {
         let mut value = self.evaluate(condition)?;
         loop {
             if !value.is_truthy() {
                 break;
             }
 
-            self.execute(body)?;
+            if let Some(result) = self.execute(body)? {
+                return Ok(Some(result));
+            }
+
             value = self.evaluate(condition)?;
         }
 
-        Ok(())
+        Ok(None)
     }
 }
 

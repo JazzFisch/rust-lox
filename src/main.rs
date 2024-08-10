@@ -1,4 +1,5 @@
 use anyhow::Result;
+use error_bag::ErrorBag;
 use lexer::Lexer;
 use parser::statement::Statement;
 use parser::Parser;
@@ -9,6 +10,7 @@ use std::path::Path;
 use token::Token;
 use visitor::expression_printer::ExpressionPrinter;
 
+mod error_bag;
 mod interpreter;
 mod lexer;
 mod parser;
@@ -51,10 +53,11 @@ fn main() -> Result<()> {
         return Err(anyhow::Error::msg(message));
     }
 
+    let mut errors = error_bag::ErrorBag::default();
     let error = match command.ok().unwrap() {
-        InterpreterCommand::Tokenize(filename) => tokenize_file(&filename, true).err(),
-        InterpreterCommand::Parse(filename) => parse_file(&filename, true).err(),
-        InterpreterCommand::Interpret(filename) => interpret_file(&filename).err(),
+        InterpreterCommand::Tokenize(filename) => tokenize_file(&filename, &mut errors, true).err(),
+        InterpreterCommand::Parse(filename) => parse_file(&filename, &mut errors, true).err(),
+        InterpreterCommand::Interpret(filename) => interpret_file(&filename, &mut errors).err(),
     };
 
     if error.is_some() {
@@ -81,13 +84,11 @@ fn handle_args() -> Result<InterpreterCommand, InterpreterError> {
     //let args: Vec<String> = vec!["".into(), "tokenize".into(), "test.lox".into()];
     //let args: Vec<String> = vec!["".into(), "parse".into(), "test.lox".into()];
     //let args: Vec<String> = vec!["".into(), "interpret".into(), "test.lox".into()];
-    //let args: Vec<String> = vec!["".into(), "interpret".into(), "test2.lox".into()];
 
     if args.len() < 3 {
         let path = Path::new(&args[0]);
-        // what the rust, rust?!?!
-        let file_name = path.file_name().unwrap().to_str().unwrap().to_string();
-        let empty = "command".to_string();
+        let file_name = path.to_string_lossy().into_owned();
+        let empty = "command".to_owned();
         let command = args.get(1).unwrap_or(&empty);
 
         return Err(InterpreterError::InvalidCommand(file_name, command.clone()));
@@ -101,17 +102,21 @@ fn handle_args() -> Result<InterpreterCommand, InterpreterError> {
     };
 }
 
-fn interpret_file(filename: &String) -> Result<(), InterpreterError> {
-    let statements = parse_file(filename, false)?;
+fn interpret_file(filename: &String, errors: &mut ErrorBag) -> Result<(), InterpreterError> {
+    let statements = parse_file(filename, errors, false)?;
     let mut interpreter = interpreter::Interpreter::new();
     interpreter.interpret(&statements)?;
 
     Ok(())
 }
 
-fn parse_file(filename: &String, print_tree: bool) -> Result<Vec<Statement>, InterpreterError> {
-    let tokens = tokenize_file(filename, false)?;
-    let mut parser = Parser::new(tokens);
+fn parse_file(
+    filename: &String,
+    errors: &mut ErrorBag,
+    print_tree: bool,
+) -> Result<Vec<Statement>, InterpreterError> {
+    let tokens = tokenize_file(filename, errors, false)?;
+    let mut parser = Parser::new(errors, tokens);
     let statements = parser.parse()?;
 
     if print_tree {
@@ -126,13 +131,17 @@ fn parse_file(filename: &String, print_tree: bool) -> Result<Vec<Statement>, Int
     Ok(statements)
 }
 
-fn tokenize_file(filename: &String, print_tokens: bool) -> Result<Vec<Token>, InterpreterError> {
+fn tokenize_file(
+    filename: &String,
+    errors: &mut ErrorBag,
+    print_tokens: bool,
+) -> Result<Vec<Token>, InterpreterError> {
     let file_contents = fs::read_to_string(filename);
     if file_contents.is_err() {
         return Err(InterpreterError::InvalidFile(filename.into()));
     }
 
     let file_contents = file_contents.ok().unwrap_or("".into());
-    let mut lexer = Lexer::new(&file_contents);
+    let mut lexer = Lexer::new(errors, &file_contents);
     lexer.tokenize(print_tokens)
 }

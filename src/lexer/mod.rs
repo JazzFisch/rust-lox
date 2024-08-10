@@ -1,7 +1,8 @@
 use anyhow::Result;
-use std::io::{self, Write};
+use std::io::Write;
 
 use crate::{
+    error_bag::ErrorBag,
     token::{token_type::TokenType, Token},
     InterpreterError,
 };
@@ -13,6 +14,7 @@ pub struct Lexer<'a> {
     iter: std::iter::Peekable<std::str::Chars<'a>>,
     keywords: std::collections::HashMap<&'static str, TokenType>,
     tokens: Vec<Token>,
+    errors: &'a mut ErrorBag,
 }
 
 fn is_digit(chr: Option<char>) -> bool {
@@ -23,13 +25,14 @@ fn is_digit(chr: Option<char>) -> bool {
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(text: &'a str) -> Self {
+    pub fn new(errors: &'a mut ErrorBag, text: &'a str) -> Self {
         Self {
             text,
             line: 1,
             pos: None,
             iter: text.chars().peekable(),
             tokens: Vec::new(),
+            errors,
             // there must be a better way to do this
             keywords: std::collections::HashMap::from([
                 ("and", TokenType::And),
@@ -106,13 +109,15 @@ impl<'a> Lexer<'a> {
                         continue;
                     }
 
-                    self.report(self.line, &format!("Unexpected character: {}", unmatched));
+                    self.errors.report_lex_error(
+                        self.line,
+                        &format!("Unexpected character: {}", unmatched),
+                    );
                     lexical_failure = true;
                 }
             }
         }
 
-        io::stderr().flush().unwrap();
         self.add_token(Token::new_eof(self.line));
 
         if print_tokens {
@@ -226,10 +231,6 @@ impl<'a> Lexer<'a> {
         self.pos.unwrap()
     }
 
-    fn report(&self, line: usize, message: &str) {
-        eprintln!("[line {}] Error: {}", line, message);
-    }
-
     fn string(&mut self) -> bool {
         let start = self.pos();
         while self.peek() != Some('"') && self.peek().is_some() {
@@ -240,7 +241,8 @@ impl<'a> Lexer<'a> {
         }
 
         if self.peek().is_none() {
-            self.report(self.line, "Unterminated string.");
+            self.errors
+                .report_lex_error(self.line, "Unterminated string.");
             return false;
         }
 
