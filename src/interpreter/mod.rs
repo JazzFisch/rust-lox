@@ -272,7 +272,12 @@ impl StatementVisitor for Interpreter {
             _ => unreachable!("Function name must be an identifier"),
         };
 
-        let function = Function::new(name.clone(), params.to_vec(), body.to_vec());
+        let function = Function::new(
+            name.clone(),
+            params.to_vec(),
+            body.to_vec(),
+            Some(self.environment.clone()),
+        );
         self.environment
             .borrow_mut()
             .define(name.as_str(), Object::Callable(Box::new(function)));

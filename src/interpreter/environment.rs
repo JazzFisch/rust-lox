@@ -4,6 +4,7 @@ use crate::parser::object::Object;
 
 use super::interpreter_error::InterpreterError;
 
+#[derive(Debug, Clone)]
 pub struct Environment {
     parent: Option<Rc<RefCell<Environment>>>,
     values: HashMap<String, Object>,

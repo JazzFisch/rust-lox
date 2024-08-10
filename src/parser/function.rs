@@ -16,11 +16,22 @@ pub struct Function {
     name: String,
     params: Vec<Token>,
     body: Vec<Statement>,
+    closure: Option<Rc<RefCell<environment::Environment>>>,
 }
 
 impl Function {
-    pub fn new(name: String, params: Vec<Token>, body: Vec<Statement>) -> Self {
-        Self { name, params, body }
+    pub fn new(
+        name: String,
+        params: Vec<Token>,
+        body: Vec<Statement>,
+        closure: Option<Rc<RefCell<environment::Environment>>>,
+    ) -> Self {
+        Self {
+            name,
+            params,
+            body,
+            closure,
+        }
     }
 }
 
@@ -35,7 +46,7 @@ impl Callable for Function {
         arguments: Vec<Object>,
     ) -> Result<Object, InterpreterError> {
         let environment = Rc::new(RefCell::new(environment::Environment::new(Some(
-            Rc::clone(&interpreter.environment),
+            Rc::clone(&self.closure.as_ref().unwrap()),
         ))));
 
         for (param, argument) in self.params.iter().zip(arguments.iter()) {
